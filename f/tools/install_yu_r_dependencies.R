@@ -8,7 +8,7 @@ manifest <- if (length(args) >= 2L) args[[2]] else file.path(project_dir, "depen
 dir.create(dirname(manifest), recursive = TRUE, showWarnings = FALSE)
 
 cran_packages <- c(
-  "data.table", "jsonlite", "digest", "readxl", "survival", "pROC", "ggplot2",
+  "data.table", "R.utils", "jsonlite", "digest", "readxl", "survival", "pROC", "ggplot2",
   "bit64", "patchwork", "ggrepel", "ragg", "httr2", "curl", "igraph",
   "ggalluvial", "scales", "msigdbr", "png", "remotes", "BiocManager"
 )

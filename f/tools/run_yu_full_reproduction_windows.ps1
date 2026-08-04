@@ -225,7 +225,7 @@ function Invoke-Doctor {
   }
 
   $rPackages = @(
-    "data.table","jsonlite","digest","readxl","survival","pROC","ggplot2","bit64",
+    "data.table","R.utils","jsonlite","digest","readxl","survival","pROC","ggplot2","bit64",
     "patchwork","ggrepel","ragg","httr2","curl","igraph","ggalluvial","scales",
     "msigdbr","AnnotationDbi","org.Hs.eg.db","GO.db","TwoSampleMR","CMAverse"
   )
