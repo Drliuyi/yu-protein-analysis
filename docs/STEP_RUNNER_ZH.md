@@ -2,12 +2,22 @@
 
 ## 入口
 
-所有日常操作只使用项目根目录的 `yu.ps1`。底层 R、Python、PowerShell 和
-WSL 代码均在 `f/`，不需要用户逐个调用。
+所有日常操作只使用项目根目录的 `yu.ps1` 或 `yu.sh`。底层 R、Python、
+PowerShell 和 WSL 代码均在 `f/`，不需要用户逐个调用。
 
 ```powershell
 .\yu.ps1 -Step help
 ```
+
+WinPC WSL 或 Git Bash：
+
+```bash
+./yu.sh --help
+./yu.sh 1-4 --resume
+```
+
+`yu.sh` 只转发到同一个 `yu.ps1` 主入口，因此两种命令使用完全相同的
+冻结配置、检查点和结果目录。
 
 ## 第一次使用
 
@@ -26,6 +36,8 @@ WSL 代码均在 `f/`，不需要用户逐个调用。
 ```powershell
 .\yu.ps1 -Step setup
 ```
+
+Shell 等价命令为 `./yu.sh setup`。
 
 缺失路径会弹出选择框；SSH 环境改为终端输入。确认后的路径写入
 `%LOCALAPPDATA%/YuProteinAnalysis/paths.json`，以后自动复用，且不会启动分析。

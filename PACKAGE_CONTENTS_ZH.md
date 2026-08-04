@@ -2,11 +2,18 @@
 
 ## 公开结构
 
-项目根目录只保留一个日常命令：
+项目根目录只保留两个等价的轻量入口：
 
 ```powershell
 .\yu.ps1 -Step help
 ```
+
+```bash
+./yu.sh --help
+./yu.sh 1-4 --resume
+```
+
+`yu.sh` 只把 WSL/Git Bash 参数转交给 `yu.ps1`，不复制统计分析逻辑。
 
 所有分析实现统一放在 `f/`：
 
@@ -27,7 +34,7 @@
 
 默认采用黄老师 `jielab/pub` 风格：`D:/data/ukb/phe`、`D:/scripts` 和
 `D:/analysis`。当前 WinPC 仍可使用原来的 `D:/UKB_data` 物理目录：首次运行
-执行 `\.\yu.ps1 -Step setup`，按提示选择真实路径，之后自动读取保存在
+执行 `.\yu.ps1 -Step setup` 或 `./yu.sh setup`，按提示选择真实路径，之后自动读取保存在
 `%LOCALAPPDATA%/YuProteinAnalysis/paths.json` 的本机配置。代码不会移动数据，
 也不会在 D 盘根目录创建兼容目录。
 

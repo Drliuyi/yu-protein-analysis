@@ -6,10 +6,14 @@ incident cardiovascular outcomes. The frozen main workflow uses
 
 ## One command
 
-The project exposes one routine entry point:
+The project exposes equivalent PowerShell and WSL/Git Bash entry points:
 
 ```powershell
 .\yu.ps1 -Step "1-4" -Resume
+```
+
+```bash
+./yu.sh 1-4 --resume
 ```
 
 Useful commands:
@@ -21,6 +25,10 @@ Useful commands:
 .\yu.ps1 -Step status     # read-only progress check
 .\yu.ps1 -Step figures    # rebuild final figures and report from existing results
 ```
+
+Shell equivalents include `./yu.sh setup`, `./yu.sh status`,
+`./yu.sh figures --force`, and `./yu.sh --help`. The shell file is a thin
+wrapper around `yu.ps1`; it does not contain a second analysis implementation.
 
 `-Step` accepts one number, lists (`"1,3,4"`), ranges (`"1-4"`), `core`,
 `downstream`, `all`, `figures`, `setup`, `paths`, and `status`.
@@ -55,7 +63,8 @@ missing path.
 ## Layout
 
 ```text
-yu.ps1                  public command
+yu.ps1                  PowerShell public command
+yu.sh                   WSL/Git Bash public command
 f/
   entry/                R entry points
   R/                    analysis and figure code
@@ -68,8 +77,9 @@ docs/                   methods, QC and operational notes
 references/             article supplements and source manifests
 ```
 
-Only `yu.ps1` is intended for routine project operation. Files under `f/` are
-implementation details and remain directly callable for debugging and audit.
+Only `yu.ps1` and `yu.sh` are intended for routine project operation. Files
+under `f/` are implementation details and remain directly callable for
+debugging and audit.
 
 ## Main steps
 
