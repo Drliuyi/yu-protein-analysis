@@ -1,0 +1,56 @@
+# Local results and deliverables
+analysis/
+dist/
+deliverables/
+archive/
+backups/
+legacy/
+Rplots.pdf
+*.log
+*.out
+*.err
+*.done.json
+
+# Raw UKB and derived participant-level data
+*.rds
+*.RData
+*.rda
+*.pgen
+*.pvar
+*.psam
+*.bed
+*.bim
+*.fam
+*.bgen
+*.sample
+*.sscore
+*.parquet
+*.feather
+*.fst
+
+# Downloaded publication/reference assets
+references/raw/
+
+# Runtime environments and caches
+__pycache__/
+*.py[cod]
+.Rhistory
+.Rproj.user/
+.renv/
+renv/library/
+.venv/
+venv/
+env/
+tools/bin/
+.DS_Store
+
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*credentials*
+*secrets*

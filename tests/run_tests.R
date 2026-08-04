@@ -1,0 +1,7 @@
+args<-commandArgs(trailingOnly=FALSE); f<-grep("^--file=",args,value=TRUE); root<-dirname(dirname(normalizePath(sub("^--file=","",f[[1]]))))
+source(file.path(root,"R","00_utils.R")); source(file.path(root,"R","02_prepare_yys.R"))
+stopifnot(identical(yuy_norm_name(c("NTPROBNP","IL6")),c("ntprobnp","il6")))
+stopifnot(length(yuy_rank_norm(1:257))==257L, min(yuy_rank_norm(1:257))==.05, max(yuy_rank_norm(1:257))==1)
+s<-yuy_score2_vector(c(55,60),c(0,1),c(0,1),c(120,140),c(0,1),c(5,6),c(1.5,1.2)); stopifnot(all(is.finite(s)),all(s>0&s<1))
+cat("ALL R TESTS PASSED\n")
+source(file.path(root, "tests", "test_figure6_systems.R"))
