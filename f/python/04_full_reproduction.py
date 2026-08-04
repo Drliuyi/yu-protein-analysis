@@ -230,28 +230,6 @@ def load_proteins(raw_file, feature_ids, cohort):
     return cohort_x
 
 
-def load_yys_scores(analysis_dir, derivation, test, yys_mode):
-    if yys_mode == "off":
-        return derivation, test, False
-    yys_dir = Path(analysis_dir) / "08_yys"
-    train_file = yys_dir / "yys_score_derivation.csv"
-    test_file = yys_dir / "yys_score_test.csv"
-    if not train_file.exists() or not test_file.exists():
-        raise RuntimeError(
-            "yys_mode=on requires both yys_score_derivation.csv and "
-            "yys_score_test.csv; run the yys stage first"
-        )
-    train_score = pd.read_csv(train_file, dtype={"eid": str})
-    test_score = pd.read_csv(test_file, dtype={"eid": str})
-    train_score["eid"] = normalize_eid(train_score.eid)
-    test_score["eid"] = normalize_eid(test_score.eid)
-    derivation = derivation.merge(train_score, on="eid", how="left", validate="one_to_one")
-    test = test.merge(test_score, on="eid", how="left", validate="one_to_one")
-    if derivation.YYScore.isna().any() or test.YYScore.isna().any():
-        raise RuntimeError("YYScore EID alignment is incomplete")
-    return derivation, test, True
-
-
 def select_stage(args, cfg):
     analysis = Path(args.analysis_dir)
     selection_dir = analysis / "08_selection"
@@ -442,15 +420,10 @@ def train_stage(args, cfg):
         test_x, on="eid", how="left", validate="one_to_one"
     )
     endpoints = endpoint_ids(args.project_dir, args.endpoint_subset)
-    derivation_x, test_x, yys_available = load_yys_scores(
-        analysis, derivation_x, test_x, args.yys_mode
-    )
-    if args.yys_mode == "on" and "cad" not in endpoints:
-        raise RuntimeError("yys_mode=on requires endpoint_subset to include cad")
     for stale_model in model_dir.glob("*__*.txt"):
         stale_model.unlink()
     for stage in ("evaluate", "figures", "report"):
-        marker = analysis / "00_logs" / f"{stage}_yys_{args.yys_mode}.done.json"
+        marker = analysis / "00_logs" / f"{stage}.done.json"
         if marker.exists():
             marker.unlink()
     params = cfg["lightgbm"]
@@ -462,30 +435,22 @@ def train_stage(args, cfg):
     model_jobs = max(1, min(int(args.model_jobs), 5))
     workers_per_model = max(1, int(args.workers) // model_jobs)
 
-    def model_specs(endpoint):
-        specs = {
-            "SCORE2": ["SCORE2_calibrated"],
-            "Protein": features,
-            "Protein_SCORE2": features + ["SCORE2_calibrated"],
-        }
-        if endpoint == "cad" and yys_available:
-            specs["Protein_YYScore"] = features + ["YYScore"]
-            specs["Protein_SCORE2_YYScore"] = features + ["SCORE2_calibrated", "YYScore"]
-        return specs
+    specs = {
+        "SCORE2": ["SCORE2_calibrated"],
+        "Protein": features,
+        "Protein_SCORE2": features + ["SCORE2_calibrated"],
+    }
 
     seed_group = {
         "SCORE2": 0,
         "Protein": 1,
-        "Protein_YYScore": 1,
         "Protein_SCORE2": 2,
-        "Protein_SCORE2_YYScore": 2,
     }
 
     for endpoint_offset, endpoint in enumerate(endpoints):
         y = derivation_x[f"event_{endpoint}"].astype(int).to_numpy()
         y_test = test_x[f"event_{endpoint}"].astype(int).to_numpy()
         oof_score = np.full(len(derivation_x), np.nan)
-        specs = model_specs(endpoint)
         oof_models = {name: np.full(len(derivation_x), np.nan) for name in specs}
         for fold in sorted(derivation_x.foldid.unique()):
             tr = derivation_x.foldid.to_numpy() != fold
@@ -551,18 +516,7 @@ def train_stage(args, cfg):
                 "model_id": model_name,
                 "feature_n": len(columns),
                 "feature_hash": sha_text(columns),
-                "contains_yyscore": "YYScore" in columns,
             })
-
-        if endpoint == "cad" and yys_available:
-            contracts = (
-                ("Protein", "Protein_YYScore"),
-                ("Protein_SCORE2", "Protein_SCORE2_YYScore"),
-            )
-            for benchmark, extension in contracts:
-                difference = sorted(set(specs[extension]).symmetric_difference(specs[benchmark]))
-                if difference != ["YYScore"]:
-                    raise RuntimeError(f"Paired design contract failed for {extension} vs {benchmark}: {difference}")
 
     pd.concat(prediction_rows, ignore_index=True).to_csv(model_dir / "test_predictions.csv.gz", index=False)
     pd.concat(importance_rows, ignore_index=True).to_csv(model_dir / "final_model_importance.csv.gz", index=False)
@@ -577,9 +531,6 @@ def train_stage(args, cfg):
             "prediction_panel_mode": args.prediction_panel_mode,
             "score2_isotonic_fit_in_derivation_only": True,
             "test_predictions_not_used_for_selection_or_tuning": True,
-            "yys_mode_requested": args.yys_mode,
-            "cad_yys_extension_enabled": bool(yys_available and "cad" in endpoints),
-            "paired_design_contract": "CAD YY models differ from their benchmark by YYScore only",
             "model_jobs": model_jobs,
             "workers_per_model": workers_per_model,
             "lightgbm_version": __import__("lightgbm").__version__,
@@ -587,7 +538,7 @@ def train_stage(args, cfg):
         }, handle, indent=2)
     print(json.dumps({
         "status": "PASS", "mode": "train", "endpoints": len(endpoints),
-        "protein_n": len(features), "yys_mode": args.yys_mode,
+        "protein_n": len(features),
     }))
 
 
@@ -602,7 +553,6 @@ def main():
     parser.add_argument("--endpoint-subset", default="all")
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--model-jobs", type=int, default=3)
-    parser.add_argument("--yys-mode", choices=["off", "on"], default="off")
     parser.add_argument(
         "--prediction-panel-mode", choices=["published_257", "local_reselected", "custom"],
         default="published_257"
@@ -633,11 +583,7 @@ def main():
     if args.resume and summary_path.exists():
         summary = read_json(summary_path)
         endpoint_matches = summary.get("endpoint_ids") == endpoints
-        mode_matches = (
-            summary.get("prediction_panel_mode") == args.prediction_panel_mode and
-            endpoint_matches and
-            (args.mode == "select" or summary.get("yys_mode_requested") == args.yys_mode)
-        )
+        mode_matches = summary.get("prediction_panel_mode") == args.prediction_panel_mode and endpoint_matches
         if args.mode == "select":
             union_file = Path(args.analysis_dir) / "08_selection/final_cross_endpoint_protein_union.csv"
             output_matches = union_file.exists()

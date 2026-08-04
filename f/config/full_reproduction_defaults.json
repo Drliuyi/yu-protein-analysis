@@ -44,23 +44,12 @@
     "score_distinct_min": 100
   },
   "endpoint_subset": "all",
-  "yys_mode": "off",
-  "yys_floor": 0.05,
-  "yys_bins_years": [0, 1, 3, 5, 10, 1000],
-  "yys_min_cases_per_bin": 20,
   "string_api_base": "https://version-12-0.string-db.org",
   "string_required_score": 700,
   "systems_top_n_per_outcome": 15,
   "systems_max_tf": 46,
   "systems_enrichment_fdr": 0.05,
   "trrust_human_url": "https://www.grnpedia.org/trrust/data/trrust_rawdata.human.tsv",
-  "component_qc": {
-    "missing_fraction_max": 0.05,
-    "sd_min": 0.02,
-    "distinct_min": 20,
-    "boundary_fraction_max": 0.90,
-    "pairwise_abs_spearman_max": 0.95
-  },
   "lightgbm": {
     "n_estimators": 500,
     "max_depth": 15,

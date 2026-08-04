@@ -21,7 +21,6 @@ source(file.path(project_dir, "f", "R", "full", "01_sources_preflight.R"))
 source(file.path(project_dir, "f", "R", "full", "02_cohort.R"))
 source(file.path(project_dir, "f", "R", "full", "03_cox_associations.R"))
 source(file.path(project_dir, "f", "R", "full", "03b_cmr_associations.R"))
-source(file.path(project_dir, "f", "R", "full", "04_yys_extension.R"))
 source(file.path(project_dir, "f", "R", "full", "04_evaluate_figures.R"))
 source(file.path(project_dir, "f", "R", "full", "06_mr.R"))
 source(file.path(project_dir, "f", "R", "full", "07_mediation.R"))
@@ -37,23 +36,17 @@ if (cfg$mode == "help") {
 
 if (cfg$mode %in% c("all", "all_fast")) {
   stop(
-    "Mode=all must be dispatched by f/tools/run_yu_full_reproduction_windows.ps1 ",
+    "Mode=all must be dispatched by yu.sh ",
     "because the workflow alternates between R and Python stages.",
     call. = FALSE
   )
 }
 
 yur_session_snapshot(cfg)
-yur_log(cfg, "Mode=", cfg$mode, " endpoint_subset=", cfg$endpoint_subset,
-        " yys_mode=", cfg$yys_mode)
+yur_log(cfg, "Mode=", cfg$mode, " endpoint_subset=", cfg$endpoint_subset)
 
 run <- function(stage, fun, validate_done = NULL) {
-  marker_stage <- if (stage %in% c("evaluate", "figures", "report")) {
-    paste0(stage, "_yys_", cfg$yys_mode)
-  } else {
-    stage
-  }
-  yur_run_stage(cfg, marker_stage, fun, validate_done = validate_done)
+  yur_run_stage(cfg, stage, fun, validate_done = validate_done)
 }
 if (cfg$mode == "sources") run("sources", function() yur_sources(cfg))
 if (cfg$mode == "preflight") run(
@@ -104,17 +97,13 @@ if (cfg$mode == "systems_tf") run("systems_tf", function() yur_run_figure6_tf(cf
 if (cfg$mode == "systems_ppi") run("systems_ppi", function() yur_run_figure6_ppi(cfg))
 if (cfg$mode == "systems_figures") run("systems_figures", function() yur_plot_figure6_systems(cfg))
 if (cfg$mode == "figure6_systems") run("figure6_systems", function() yur_run_figure6_systems_all(cfg))
-if (cfg$mode == "yys") {
-  if (cfg$yys_mode != "on") stop("Mode=yys requires --yys_mode=on", call. = FALSE)
-  run("yys", function() yur_prepare_yys_extension(cfg))
-}
 if (cfg$mode == "evaluate") run("evaluate", function() yur_evaluate_prediction(cfg))
 if (cfg$mode == "figures") run("figures", function() yur_build_figures(cfg))
 if (cfg$mode == "report") run("report", function() yur_build_report(cfg))
 
 python_modes <- c("select", "train")
 if (cfg$mode %in% python_modes) {
-  stop("Mode=", cfg$mode, " is dispatched by f/tools/run_yu_full_reproduction_windows.ps1", call. = FALSE)
+  stop("Mode=", cfg$mode, " is dispatched by yu.sh", call. = FALSE)
 }
 
 valid <- c("sources", "preflight", "cohort", "cox_prepare", "cox_shard", "cox_merge", "cox",
@@ -123,5 +112,5 @@ valid <- c("sources", "preflight", "cohort", "cox_prepare", "cox_shard", "cox_me
            "mediation_cmest_pilot", "mediation_cmest_shard", "mediation_cmest_merge",
            "systems_prepare", "systems_enrichment", "systems_tf", "systems_ppi",
            "systems_figures", "figure6_systems",
-           "select", "yys", "train", "evaluate", "figures", "report", "all", "all_fast")
+           "select", "train", "evaluate", "figures", "report", "all", "all_fast")
 if (!cfg$mode %in% valid) stop("Unsupported mode: ", cfg$mode, call. = FALSE)

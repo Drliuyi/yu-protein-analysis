@@ -20,7 +20,6 @@
 | Figure 3 | CMR Manhattan and top-15 heat map | `cmr_parallel` then `figures` | `15_figures/figure3_local_cmr.*`; official S9 is fallback only |
 | Figure 4A | Published-model hold-out AUC bars | `figures` | `figure4a_prediction_auc.*` and source data |
 | Figure 4B | Recurrent top-15 protein gain stacked by outcome | `figures` | `figure4b_recurrent_importance.*` and source data |
-| Figure 4C | CAD-only paired YYScore delta AUC | `figures` | `figure4c_cad_yys_paired_delta_auc.*` and source data |
 | Figure 5 | MR Manhattan and mediation panels | gated/reference | `15_figures/reference_figure5*` until local MR exists |
 | Figure 6A | PRS-protein heat map | local `prs` stage | `13_prs/prs_protein_associations.csv.gz` and local Figure 6A |
 | Figure 6B-D | Enrichment, PPI and TF panels | planned local downstream stage | use locally significant PRS proteins; official S18 is fallback only |

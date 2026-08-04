@@ -60,17 +60,10 @@ importance[, gain := rexp(.N)]
 importance[, standardized_gain := gain / sum(gain), by = outcome_id]
 data.table::fwrite(importance, file.path(paths$evaluation, "table_s12_model_importance.csv.gz"))
 
-paired <- data.table::data.table(
-  comparison_id = c("Protein_YYScore_vs_Protein", "Protein_SCORE2_YYScore_vs_Protein_SCORE2"),
-  delta_auc = c(.008, .006), delta_auc_ci_low = c(.002, .001), delta_auc_ci_high = c(.014, .011)
-)
-data.table::fwrite(paired, file.path(paths$evaluation, "cad_yys_paired_comparisons.csv"))
-
 yur_build_figures(cfg)
 required <- c(
   "figure2a_significant_counts.pdf", "figure2b_o_cox_volcano.tiff",
-  "figure4a_prediction_auc.pdf", "figure4b_recurrent_importance.tiff",
-  "figure4c_cad_yys_paired_delta_auc.png", "figure4c_source_data.csv"
+  "figure4a_prediction_auc.pdf", "figure4b_recurrent_importance.tiff"
 )
 missing <- required[!file.exists(file.path(paths$figures, required))]
 stopifnot(!length(missing))

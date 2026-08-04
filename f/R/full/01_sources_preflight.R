@@ -8,7 +8,7 @@ yur_sources <- function(cfg) {
   if (!file.exists(workbook) || !file.exists(methods_pdf)) {
     stop(
       "Official supplementary workbook/PDF is missing. Resolved files: ",
-      workbook, "; ", methods_pdf, ". Run yu.ps1 -Step setup or supply explicit paths."
+      workbook, "; ", methods_pdf, ". Run ./yu.sh setup or supply explicit paths."
     )
   }
 

@@ -15,21 +15,10 @@ jobs:
           cache: pip
           cache-dependency-path: f/config/requirements-py39.txt
       - run: python -m pip install -r f/config/requirements-py39.txt
-      - run: bash f/tests/test_shell_entrypoint.sh
+      - run: python f/tests/test_entrypoint.py
       - run: python f/tests/test_full_reproduction.py
-      - run: python f/tests/test_trainer.py
-      - run: python f/tests/test_yys_v2_lightgbm.py
       - run: python f/tests/test_directnas_windows.py
       - run: python f/tests/test_batched_prs_score.py
-
-  powershell:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - shell: pwsh
-        run: ./f/tests/test_step_runner_parse.ps1
-      - shell: pwsh
-        run: ./yu.ps1 -Step help
 
   r-tests:
     runs-on: ubuntu-latest

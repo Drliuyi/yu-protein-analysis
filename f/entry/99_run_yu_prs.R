@@ -22,7 +22,7 @@ if (mode == "help") {
     "  associate_shard    Regress all candidate proteins for one --endpoint_subset.\n",
     "  merge_associations Validate all 13 shards; retain significant and non-significant rows.\n",
     "  report             Write a source-locked PRS reconstruction report.\n\n",
-    "GWAS preparation and chromosome scoring are dispatched by f/tools/run_yu_prs_windows.ps1.\n"
+    "GWAS preparation and chromosome scoring are dispatched by yu.sh.\n"
   ))
   quit(status = 0)
 }

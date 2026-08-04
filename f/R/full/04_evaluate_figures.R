@@ -49,22 +49,11 @@ yur_nri_idi <- function(y, p_new, p_old) {
 }
 
 yur_evaluate_prediction <- function(cfg) {
-  yys_mode <- cfg$yys_mode %||% "off"
   prediction_file <- file.path(cfg$paths$models, "test_predictions.csv.gz")
   if (!file.exists(prediction_file)) stop("Run train first: ", prediction_file)
   prediction <- fread(prediction_file)
   required_models <- c("SCORE2", "Protein", "Protein_SCORE2")
   if (!all(required_models %in% prediction$model_id)) stop("Final prediction file lacks the three published model families.")
-  yys_models <- c("Protein_YYScore", "Protein_SCORE2_YYScore")
-  yys_present <- any(prediction$model_id %in% yys_models)
-  cad_present <- "cad" %in% prediction$outcome_id
-  if (yys_mode == "off" && yys_present) {
-    stop("yys_mode=off but test_predictions contains YYScore models; rerun train with yys_mode=off.", call. = FALSE)
-  }
-  if (yys_mode == "on" && cad_present && !all(yys_models %in% prediction[outcome_id == "cad", unique(model_id)])) {
-    stop("yys_mode=on requires both paired CAD YYScore models in test_predictions.", call. = FALSE)
-  }
-
   set.seed(cfg$bootstrap_seed)
   metric_rows <- list(); comparison_rows <- list(); bootstrap_rows <- list()
   endpoints <- unique(prediction$outcome_id)
@@ -75,10 +64,7 @@ yur_evaluate_prediction <- function(cfg) {
     n <- nrow(wide)
     indices <- replicate(cfg$bootstrap_n, sample.int(n, n, replace = TRUE), simplify = FALSE)
 
-    endpoint_models <- intersect(
-      c("SCORE2", "Protein", "Protein_SCORE2", "Protein_YYScore", "Protein_SCORE2_YYScore"),
-      names(wide)
-    )
+    endpoint_models <- intersect(required_models, names(wide))
     for (model in endpoint_models) {
       threshold <- thresholds[model_id == model, threshold][[1]]
       observed <- yur_binary_metrics(wide$y, wide[[model]], threshold)
@@ -116,16 +102,6 @@ yur_evaluate_prediction <- function(cfg) {
       new_model = c("Protein", "Protein_SCORE2", "Protein_SCORE2"),
       old_model = c("SCORE2", "SCORE2", "Protein")
     )
-    if (endpoint == "cad" && all(c("Protein_YYScore", "Protein_SCORE2_YYScore") %in% endpoint_models)) {
-      pairs <- rbind(
-        pairs,
-        data.table(
-          comparison_id = c("Protein_YYScore_vs_Protein", "Protein_SCORE2_YYScore_vs_Protein_SCORE2"),
-          new_model = c("Protein_YYScore", "Protein_SCORE2_YYScore"),
-          old_model = c("Protein", "Protein_SCORE2")
-        )
-      )
-    }
     for (i in seq_len(nrow(pairs))) {
       new_model <- pairs$new_model[[i]]; old_model <- pairs$old_model[[i]]
       observed_new <- yur_auc(wide$y, wide[[new_model]])
@@ -180,20 +156,11 @@ yur_evaluate_prediction <- function(cfg) {
     )]
     yur_write_csv(replication, file.path(cfg$paths$evaluation, "cad_prediction_replication_qc.csv"))
   }
-  yys_comparison_file <- file.path(cfg$paths$evaluation, "cad_yys_paired_comparisons.csv")
-  if (yys_mode == "on") {
-    yur_write_csv(
-      comparisons[comparison_id %in% c("Protein_YYScore_vs_Protein", "Protein_SCORE2_YYScore_vs_Protein_SCORE2")],
-      yys_comparison_file
-    )
-  } else if (file.exists(yys_comparison_file)) {
-    unlink(yys_comparison_file)
-  }
   fwrite(bootstrap, file.path(cfg$paths$evaluation, "prediction_bootstrap_replicates.csv.gz"), na = "")
   importance <- fread(file.path(cfg$paths$models, "final_model_importance.csv.gz"))
   yur_write_csv(importance, file.path(cfg$paths$evaluation, "table_s12_model_importance.csv.gz"))
   yur_write_json(list(
-    status = "PASS", endpoints = endpoints, endpoint_n = length(endpoints), yys_mode = yys_mode,
+    status = "PASS", endpoints = endpoints, endpoint_n = length(endpoints),
     bootstrap_n = cfg$bootstrap_n, interval_exports = c("IQR", "95CI"),
     prediction_panel_mode = cfg$prediction_panel_mode,
     score2_qc = "Cohort construction hard-fails on implausible lipid units or saturated SCORE2.",
@@ -245,15 +212,6 @@ yur_reference_sheet <- function(cfg, sheet) {
 }
 
 yur_build_figures <- function(cfg) {
-  yys_mode <- cfg$yys_mode %||% "off"
-  if (yys_mode == "off") {
-    stale_yys <- file.path(
-      cfg$paths$figures,
-      paste0("figure4c_cad_yys_paired_delta_auc", c(".pdf", ".png", ".tiff"))
-    )
-    stale_yys <- c(stale_yys, file.path(cfg$paths$figures, "figure4c_source_data.csv"))
-    unlink(stale_yys[file.exists(stale_yys)])
-  }
   if (!requireNamespace("ggplot2", quietly = TRUE)) stop("ggplot2 is required.")
   colors <- c(SCORE2 = "#9A9A9A", Protein = "#2C7FB8", Protein_SCORE2 = "#D95F0E")
 
@@ -990,29 +948,6 @@ yur_build_figures <- function(cfg) {
       ncol = 1, heights = c(.16, 1.02, .88)
     )
     yur_save_plot(p4_complete, "figure4_prediction_and_importance", cfg, 11, 9.1)
-  }
-
-  comparison_file <- file.path(cfg$paths$evaluation, "cad_yys_paired_comparisons.csv")
-  if (file.exists(comparison_file)) {
-    paired <- fread(comparison_file)
-    if (nrow(paired)) {
-      paired[, comparison_label := factor(
-        comparison_id,
-        levels = c("Protein_SCORE2_YYScore_vs_Protein_SCORE2", "Protein_YYScore_vs_Protein"),
-        labels = c("Protein + SCORE2 + YYScore vs Protein + SCORE2", "Protein + YYScore vs Protein")
-      )]
-      p4c <- ggplot2::ggplot(paired, ggplot2::aes(delta_auc, comparison_label)) +
-        ggplot2::geom_vline(xintercept = 0, linetype = 2, linewidth = .35, color = "#666666") +
-        ggplot2::geom_errorbar(
-          ggplot2::aes(xmin = delta_auc_ci_low, xmax = delta_auc_ci_high),
-          orientation = "y", width = .14, linewidth = .55, color = "#A63D2F"
-        ) +
-        ggplot2::geom_point(size = 2.8, shape = 21, stroke = .5, fill = "#D95F0E", color = "white") +
-        ggplot2::labs(x = expression(Delta*"AUC (YYScore extension - benchmark)"), y = NULL, title = "C. CAD-specific YYScore extension") +
-        yur_theme()
-      yur_save_plot(p4c, "figure4c_cad_yys_paired_delta_auc", cfg, 7.5, 3.6)
-      yur_write_csv(paired, file.path(cfg$paths$figures, "figure4c_source_data.csv"))
-    }
   }
 
   local_cmr_file <- file.path(cfg$paths$cmr, "cmr_associations.csv.gz")
@@ -2106,14 +2041,13 @@ yur_build_figures <- function(cfg) {
     )
     provenance[, evidence_scope := fifelse(
       startsWith(file, "reference_"), "OFFICIAL_SUPPLEMENT_TABLE_RECONSTRUCTION",
-      fifelse(grepl("yys", file, ignore.case = TRUE), "LOCAL_CAD_YYS_EXTENSION", "LOCAL_SOURCE_LOCKED_RECOMPUTATION")
+      "LOCAL_SOURCE_LOCKED_RECOMPUTATION"
     )]
     yur_write_csv(provenance, file.path(cfg$paths$figures, "figure_provenance_manifest.csv"))
   }
 }
 
 yur_build_report <- function(cfg) {
-  yys_mode <- cfg$yys_mode %||% "off"
   files <- list.files(cfg$analysis_dir, recursive = TRUE, full.names = TRUE)
   files <- files[file.exists(files) & !dir.exists(files)]
   manifest <- data.table(
@@ -2129,13 +2063,12 @@ yur_build_report <- function(cfg) {
   score2_qc_file <- file.path(cfg$paths$cohort, "score2_input_output_qc.csv")
   score2_qc_status <- if (file.exists(score2_qc_file) && all(fread(score2_qc_file)$status == "PASS")) "PASS" else "MISSING_OR_FAIL"
   status <- data.table(
-    module = c("sources", "cohort", "cox", "selection", "cad_yys", "prediction", "figures", "cmr", "mr", "mediation", "prs", "enrichment"),
+    module = c("sources", "cohort", "cox", "selection", "prediction", "figures", "cmr", "mr", "mediation", "prs", "enrichment"),
     status = c(
       ifelse(file.exists(file.path(cfg$paths$sources, "code_availability_audit.json")), "PASS", "MISSING"),
       ifelse(file.exists(file.path(cfg$paths$cohort, "cohort_summary.json")), "PASS", "MISSING"),
       ifelse(file.exists(cox_summary), "PASS", "MISSING"),
       ifelse(file.exists(selection_summary), "PASS", "MISSING"),
-      ifelse(yys_mode == "off", "DISABLED", ifelse(file.exists(file.path(cfg$paths$yys, "yys_manifest.json")), "PASS", "MISSING")),
       ifelse(file.exists(evaluation_summary), "PASS", "MISSING"),
       ifelse(file.exists(file.path(cfg$paths$figures, "figure_provenance_manifest.csv")), "PASS", "NOT_RUN"),
       ifelse(file.exists(file.path(cfg$paths$cmr, "cmr_associations.csv.gz")), "PASS", "NOT_RUN"),
@@ -2152,7 +2085,6 @@ yur_build_report <- function(cfg) {
   yur_write_csv(status, file.path(cfg$paths$report, "module_status.csv"))
   lines <- c(
     "# Yu/Chen 2025 reproduction report", "",
-    paste0("YYScore mode: `", yys_mode, "`."), "",
     paste0("Prediction panel mode: `", cfg$prediction_panel_mode, "`."), "",
     "This report distinguishes locally recomputed results from official-table reference reconstructions.", "",
     "## Code availability", "",
@@ -2168,10 +2100,9 @@ yur_build_report <- function(cfg) {
       " reference proteins. Overlap: ", selection$local_published_overlap_n, "."
     ) else "- Selection summary is not available.",
     "- Only an all-14-endpoint selection run can be compared with the published 671-candidate and 257-protein anchors.",
-    "- The local derivation-only panel is used for the primary model and future YYScore extension; the published 257 panel is reference-only and never replaces local selection.",
+    "- The local derivation-only panel is the primary prediction panel; the published 257 panel is reference-only.",
     "- Figures whose names start with `reference_` are reconstructions from official supplementary tables, not local participant-level results.",
-    "- The reported prediction AUC is an incident-event classification AUC over observed follow-up, not a fixed 1/3/5/10-year AUC.",
-    "- YYScore may be compared only after the standard Yu/Chen benchmark is frozen on the same split and selected panel."
+    "- The reported prediction AUC is an incident-event classification AUC over observed follow-up, not a fixed 1/3/5/10-year AUC."
   )
   writeLines(lines, file.path(cfg$paths$report, "RESULTS_AND_QC.md"))
 }

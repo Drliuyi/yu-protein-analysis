@@ -144,7 +144,7 @@ yur_string_map <- function(genes, cfg, stem) {
     url,
     list(
       identifiers = paste(genes, collapse = "\r"), species = "9606", limit = "1",
-      echo_query = "1", caller_identity = "yy_cad_yu_yys"
+      echo_query = "1", caller_identity = "yu_protein_analysis"
     ),
     file.path(out_dir, paste0(stem, "_string_mapping_raw.tsv")),
     timeout_seconds = 300L
@@ -396,7 +396,7 @@ yur_run_figure6_ppi <- function(cfg) {
     list(
       identifiers = paste(unique(mapping$stringId), collapse = "\r"), species = "9606",
       required_score = as.character(cfg$string_required_score %||% 150L),
-      network_type = "functional", add_nodes = "0", caller_identity = "yy_cad_yu_yys"
+      network_type = "functional", add_nodes = "0", caller_identity = "yu_protein_analysis"
     ),
     file.path(out_dir, "string_network_raw.tsv"), timeout_seconds = 600L
   )

@@ -7,11 +7,9 @@ source(file.path(root, "R", "full", "01_sources_preflight.R"))
 source(file.path(root, "R", "full", "02_cohort.R"))
 source(file.path(root, "R", "full", "03_cox_associations.R"))
 source(file.path(root, "R", "full", "03b_cmr_associations.R"))
-source(file.path(root, "R", "full", "04_yys_extension.R"))
 source(file.path(root, "R", "full", "04_evaluate_figures.R"))
 
 defaults <- jsonlite::read_json(file.path(root, "config", "full_reproduction_defaults.json"), simplifyVector = TRUE)
-stopifnot(identical(defaults$yys_mode, "off"))
 stopifnot(identical(defaults$prediction_panel_mode, "local_reselected"))
 stopifnot(
   identical(defaults$figure4_extra_projects, ""),
@@ -290,24 +288,5 @@ p_bad <- rev(p_good)
 stopifnot(yur_auc(y, p_good) > .99, yur_auc(y, p_bad) < .01)
 metrics <- yur_binary_metrics(y, p_good, .5)
 stopifnot(all(c("auc", "accuracy", "sensitivity", "specificity", "f1", "brier") %in% names(metrics)))
-
-ranked <- yur_rank_norm(c(3, 1, 2), floor = .05)
-stopifnot(ranked[[1]] == 1, ranked[[2]] == .05, ranked[[3]] > ranked[[2]])
-set.seed(20260715)
-synthetic_components <- data.table::data.table(
-  A = runif(100, .05, 1), B = runif(100, .05, 1),
-  C = runif(100, .05, 1), D = runif(100, .05, 1)
-)
-qc_cfg <- list(
-  yys_floor = .05,
-  component_qc = list(
-    missing_fraction_max = .05, sd_min = .02, distinct_min = 20,
-    boundary_fraction_max = .90, pairwise_abs_spearman_max = .95
-  )
-)
-qc <- yur_component_qc(synthetic_components, qc_cfg)
-stopifnot(qc$pass)
-synthetic_components[, B := 1]
-stopifnot(!yur_component_qc(synthetic_components, qc_cfg)$pass)
 
 cat("ALL FULL-REPRODUCTION R TESTS PASSED\n")

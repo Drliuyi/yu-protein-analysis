@@ -68,15 +68,11 @@ yur_init_config <- function(project_dir, cli) {
   cfg$project_dir <- normalizePath(project_dir, winslash = "/", mustWork = TRUE)
   cfg$dir0 <- normalizePath(cfg$dir0 %||% getwd(), winslash = "/", mustWork = FALSE)
   cfg$mode <- tolower(as.character(cfg$mode %||% "help"))
-  cfg$yys_mode <- tolower(as.character(cfg$yys_mode %||% "off"))
-  if (!cfg$yys_mode %in% c("off", "on")) {
-    stop("yys_mode must be one of: off, on", call. = FALSE)
-  }
   cfg$resume <- yur_bool(cfg$resume %||% FALSE)
   cfg$force <- yur_bool(cfg$force %||% FALSE)
   for (v in c(
     "workers", "cox_parallel_jobs", "cmr_parallel_jobs", "bootstrap_n", "bootstrap_seed",
-    "split_seed", "inner_fold_seed", "inner_folds", "yys_min_cases_per_bin",
+    "split_seed", "inner_fold_seed", "inner_folds",
     "cmest_shard_index", "cmest_shard_count", "cmest_pilot_nboot",
     "string_required_score", "systems_top_n_per_outcome", "systems_max_tf"
   )) {
@@ -84,12 +80,10 @@ yur_init_config <- function(project_dir, cli) {
   }
   cfg$protein_missingness_max <- as.numeric(cfg$protein_missingness_max)
   cfg$importance_cumulative_fraction <- as.numeric(cfg$importance_cumulative_fraction)
-  cfg$yys_floor <- as.numeric(cfg$yys_floor)
   cfg$systems_enrichment_fdr <- as.numeric(cfg$systems_enrichment_fdr %||% 0.05)
   cfg$figure4_extra_projects <- as.character(cfg$figure4_extra_projects %||% "")
   cfg$figure4_extra_outcomes <- as.character(cfg$figure4_extra_outcomes %||% "")
   cfg$figure4_extra_labels <- as.character(cfg$figure4_extra_labels %||% "")
-  cfg$yys_bins_years <- as.numeric(cfg$yys_bins_years)
   cfg$phenotype_rds <- yur_abs_path(cfg$phenotype_rds, cfg$dir0)
   cfg$raw_phenotype_file <- yur_abs_path(cfg$raw_phenotype_file, cfg$dir0, cfg$project_dir)
   cfg$raw_protein_file <- yur_abs_path(cfg$raw_protein_file, cfg$dir0)
@@ -127,7 +121,6 @@ yur_init_config <- function(project_dir, cli) {
     supplement_figures = "16_supplementary_figures", report = "17_report", cache = "90_cache"
   )
   cfg$paths <- lapply(folders, function(x) file.path(cfg$analysis_dir, x))
-  cfg$paths$yys <- file.path(cfg$analysis_dir, "08_yys")
   for (p in cfg$paths) dir.create(p, recursive = TRUE, showWarnings = FALSE)
   cfg$paths$run_log <- file.path(cfg$paths$logs, "run.log")
   cfg$mr_outcome_lookup_dir <- yur_abs_path(
@@ -321,7 +314,7 @@ yur_select_outcomes <- function(cfg) {
 
 yur_print_help <- function() {
   cat(paste0(
-    "Yu/Chen 2025 full-article reproduction with optional paired YYScore extension\n\n",
+    "Yu/Chen 2025 full-article reproduction\n\n",
     "Modes:\n",
     "  sources    Audit article, supplement workbook/PDF and export Tables S23-S26.\n",
     "  preflight  Validate local phenotype/protein inputs, fields, panel and packages.\n",
@@ -341,8 +334,6 @@ yur_print_help <- function() {
     "  mediation_cmest_pilot  Run one BMI-GDF15-CAD CMAverse timing/QC pilot.\n",
     "  mediation_cmest_shard  Run one resumable CMAverse path shard.\n",
     "  mediation_cmest_merge  Validate and merge all CMAverse shards.\n",
-    "  mediation_cmest_parallel  Parallel CMAverse dispatcher (PowerShell only).\n",
-    "  figure5_local  Run local MR/mediation and rebuild Figure 5 (PowerShell).\n",
     "  systems_prepare     Build Figure 6B-D inputs from local significant Cox proteins.\n",
     "  systems_enrichment  Run STRING pathway enrichment against the measured panel.\n",
     "  systems_tf          Download TRRUST and build CVD-protein-TF edges.\n",
@@ -350,14 +341,12 @@ yur_print_help <- function() {
     "  systems_figures     Draw local Figure 6B, 6C, 6D and the combined panel.\n",
     "  figure6_systems     Run all Figure 6B-D systems stages in sequence.\n",
     "  select     Derivation-only preliminary LightGBM gain selection to cumulative 30%.\n",
-    "  yys        Freeze CAD-only ABCD-YYS and participant-level YYScore; requires yys_mode=on.\n",
-    "  train      Fit final SCORE2, Protein and Protein+SCORE2; YY models only when yys_mode=on.\n",
+    "  train      Fit final SCORE2, Protein and Protein+SCORE2 models.\n",
     "  evaluate   Hold-out metrics, DeLong, NRI/IDI and paired bootstrap.\n",
     "  figures    Generate source-data tables and manuscript figures.\n",
     "  report     Build a source-locked result/QC report.\n",
-    "  all_fast   Parallel Cox plus source-locked benchmark; YY extension is optional.\n",
-    "  monitor    Read-only status and log-tail view (PowerShell wrapper only).\n",
-    "  all        Sequential compatibility run; Python stages are dispatched by PowerShell.\n\n",
+    "  all_fast   Parallel Cox plus source-locked benchmark.\n",
+    "  all        Full workflow; use yu.sh for cross-language dispatch.\n\n",
     "Key options:\n",
     "  --endpoint_subset=all or comma-separated IDs such as cad,heart_failure\n",
     "  --raw_protein_file=<unimputed baseline NPX table>\n",
@@ -372,10 +361,6 @@ yur_print_help <- function() {
     "  --workers=16 --bootstrap_n=1000 --resume=true\n",
     "  --cmest_shard_index=1 --cmest_shard_count=8 --cmest_pilot_nboot=20\n",
     "  --string_required_score=700 --systems_top_n_per_outcome=15 --systems_max_tf=46 --systems_enrichment_fdr=0.05\n",
-    "  --yys_mode=off (default reproduction only) or --yys_mode=on (optional extension)\n",
-    "  PowerShell: -CoxJobs 4 controls endpoint-process concurrency.\n\n",
-    "PowerShell defaults to -YYScoreMode off. Set -YYScoreMode on explicitly\n",
-    "only after the standard Yu/Chen reproduction has been frozen.\n\n",
     "The paper did not release author scripts, participant split EIDs, or tuning code.\n",
     "Required technical covariates are source locked: season from baseline date,\n",
     "fasting time from UKB field 74, and panel-specific sampling-to-processing lag\n",

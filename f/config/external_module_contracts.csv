@@ -1,9 +1,0 @@
-module,required_input,required_columns_or_format,local_output,blocking_reason
-CMR,Participant-level CMR phenotype table,eid plus the 19 official CMR metrics,07_cmr/cmr_associations.csv.gz,CMR fields are not part of the current frozen all.rds mapping
-MR protein_to_CVD,pQTL and CVD GWAS summary statistics,variant effect allele other allele beta se p eaf sample size,11_mr/mr_results.csv,External GWAS harmonisation and LD reference are required
-Reverse MR,CVD GWAS exposure and pQTL outcome summary statistics,TwoSampleMR-compatible exposure and outcome files,11_mr/reverse_mr_results.csv,External GWAS harmonisation and LD reference are required
-Mediation,Participant risk-factor protein and incident-outcome table,eid risk_factor protein time event covariates,12_mediation/mediation_results.csv,Formal CMAverse input has not been frozen
-PRS,Per-participant endpoint PRS,eid outcome_id prs plus split-safe covariates,13_prs/prs_protein_associations.csv,Genotype and PRSice outputs are required
-Drug enrichment,MR-positive protein target list,protein target_id disease_code drug_id,14_enrichment/drug_target_enrichment.csv,External drug database export is required
-Pathway enrichment,Local full-incident Cox table,protein outcome_id p beta plus measured-protein background,14_enrichment/enrichment_results.csv,Implemented with MSigDB 2026.1 and the local measured-protein background
-PPI and TF,Local significant and per-outcome top-15 Cox proteins,STRING v12 and TRRUST v2 node/edge tables with frozen thresholds,14_enrichment/network_results.csv,Implemented in code; outputs are reproducible equivalents rather than archived Metascape/Cytoscape sessions
