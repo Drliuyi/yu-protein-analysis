@@ -49,5 +49,4 @@ line-for-line reproduction of unpublished author code.
   archived.
 
 All local decisions for these unresolved items are recorded in
-`config/method_provenance.csv` and must be frozen before formal execution.
-
+`f/config/method_provenance.csv` and must be frozen before formal execution.

@@ -42,6 +42,7 @@ renv/library/
 venv/
 env/
 tools/bin/
+f/tools/bin/
 .DS_Store
 
 # Credentials and local configuration

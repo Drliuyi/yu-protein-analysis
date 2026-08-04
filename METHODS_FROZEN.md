@@ -64,4 +64,4 @@ component is not removed or reweighted after test inspection.
 The article did not release author scripts, split EIDs or the LightGBM tuning
 search space. This is an independent source-locked implementation using the
 reported final parameters. Every published, inferred and local computational
-decision is listed in `config/method_provenance.csv`.
+decision is listed in `f/config/method_provenance.csv`.

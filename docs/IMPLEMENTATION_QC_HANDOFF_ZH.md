@@ -14,7 +14,7 @@
 
 ### A. 全文章复现主轨
 
-入口：`tools/run_yu_full_reproduction_windows.ps1`。
+内部入口：`f/tools/run_yu_full_reproduction_windows.ps1`；日常使用 `yu.ps1`。
 
 实现顺序：
 
@@ -33,7 +33,7 @@
 
 ### B. CAD 固定 257 蛋白快速审计轨
 
-入口：`tools/run_yu_yys_windows.ps1`。
+历史内部入口：`f/tools/run_yu_yys_windows.ps1`。
 
 该轨直接读取官方 Table S12 中 CAD 对应的固定面板，用于快速验证 SCORE2、Protein、Protein+SCORE2 以及单列 YYScore 扩展。它不能代替全 14 结局筛选复现。
 
@@ -53,17 +53,17 @@
 |Mediation|输入受限|需要冻结 risk-factor participant table|
 |Metascape/STRING/TRRUST|外部会话受限|作者未公开数据库会话，必须记录版本、背景和阈值|
 
-详细契约见 `config/external_module_contracts.csv`。
+详细契约见 `f/config/external_module_contracts.csv`。
 
 ## 4. 质控时必须确认
 
-1. `config/outcomes.csv` 恰好是官方 S10/S12 的 14 个预测结局。
+1. `f/config/outcomes.csv` 恰好是官方 S10/S12 的 14 个预测结局。
 2. `raw_protein_file` 是未预先插补的 baseline NPX 表，不能静默使用旧 `prot.rds`。
 3. 正式全复现必须 `EndpointSubset=all`；单独 CAD 只能做烟雾测试。
 4. `select` 阶段只读取 derivation EID 和蛋白，不能读取 test outcome。
 5. test prediction 只在 257 联合面板、参数和模型全部冻结后产生。
 6. 任何 `reference_*` 图片仅来自官方附件，不得写成“本地复现结果”。
-7. 论文没有明确报告 split seed、分类阈值和完整调参空间；本地决定必须保留在 `config/method_provenance.csv`。
+7. 论文没有明确报告 split seed、分类阈值和完整调参空间；本地决定必须保留在 `f/config/method_provenance.csv`。
 
 ## 5. 仅质控、不启动正式模型的命令
 
@@ -71,14 +71,14 @@
 cd D:\UKB_data\scripts\yy_cad_yu_yys
 
 powershell -NoProfile -ExecutionPolicy Bypass `
-  -File .\tools\run_yu_full_reproduction_windows.ps1 `
+  -File .\f\tools\run_yu_full_reproduction_windows.ps1 `
   -Mode help
 
 Rscript.exe --vanilla .\tests\test_full_reproduction.R
 python .\tests\test_full_reproduction.py
 
 powershell -NoProfile -ExecutionPolicy Bypass `
-  -File .\tools\run_yu_full_reproduction_windows.ps1 `
+  -File .\f\tools\run_yu_full_reproduction_windows.ps1 `
   -Mode sources `
   -Dir0 D:/UKB_data
 ```

@@ -16,7 +16,7 @@
 cd D:\UKB_data\scripts\yy_cad_yu_yys
 
 powershell -NoProfile -ExecutionPolicy Bypass `
-  -File .\tools\run_yu_full_reproduction_windows.ps1 `
+  -File .\f\tools\run_yu_full_reproduction_windows.ps1 `
   -Mode all_fast `
   -Dir0 D:/UKB_data `
   -AnalysisProject yu_proteomic_repo_v2 `
@@ -40,7 +40,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
-  -File .\tools\run_yu_full_reproduction_windows.ps1 `
+  -File .\f\tools\run_yu_full_reproduction_windows.ps1 `
   -Mode all_fast `
   -Dir0 D:/UKB_data `
   -AnalysisProject yu_proteomic_repo_v2 `

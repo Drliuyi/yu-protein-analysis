@@ -72,7 +72,7 @@ differs from 2,920.
 ## CMR model
 
 The local replacement for published Figure 3 uses the 19 cardiac MRI phenotypes
-listed in `config/cmr_metrics.csv`. The source is the locally extracted UKB field
+listed in `f/config/cmr_metrics.csv`. The source is the locally extracted UKB field
 table `analysis/sleepchart_reproduction/data/mribag_features/heart/feature.tsv`.
 It is joined to the current baseline-14-CVD-free proteomics cohort by EID. For each
 metric and each protein in the exact Cox-retained panel:
