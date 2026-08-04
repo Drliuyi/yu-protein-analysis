@@ -44,6 +44,7 @@ jobs:
           packages: |
             any::data.table
             any::R.utils
+            any::bit64
             any::jsonlite
             any::digest
             any::survival
