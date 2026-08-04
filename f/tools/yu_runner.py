@@ -106,6 +106,11 @@ def sha256(path: str | Path) -> str:
     return digest.hexdigest()
 
 
+def valid_model_runtime(output: str) -> bool:
+    fields = output.strip().split()
+    return len(fields) == 2 and fields[0].split(".")[:2] == ["3", "9"] and fields[1] == "3.3.2"
+
+
 def profile_path(explicit: str) -> Path:
     if explicit:
         return Path(local_path(explicit)).expanduser()
@@ -451,7 +456,7 @@ class Runner:
             self.model_python = resolve_model_python(self.args.model_python)
         code = "import sys,lightgbm;print('.'.join(map(str,sys.version_info[:3])),lightgbm.__version__)"
         result = subprocess.run([self.model_python, "-c", code], text=True, capture_output=True)
-        if result.returncode or not result.stdout.strip().startswith("3.9 ") or not result.stdout.strip().endswith(" 3.3.2"):
+        if result.returncode or not valid_model_runtime(result.stdout):
             fail(f"Formal models require Python 3.9 and LightGBM 3.3.2. Found: {result.stdout.strip() or result.stderr.strip()}")
 
     def r_arguments(self, stage: str, overrides: dict[str, object] | None = None, entry: Path = FULL_R) -> list[str]:
