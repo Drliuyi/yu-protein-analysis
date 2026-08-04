@@ -64,7 +64,11 @@ def local_path(value: str) -> str:
     if os.name == "nt" or not is_windows_path(value):
         return value.rstrip("/") if value not in ("/", "") else value
     if shutil.which("wslpath"):
-        return subprocess.check_output(["wslpath", "-u", value], text=True).strip()
+        result = subprocess.run(["wslpath", "-u", value], text=True, capture_output=True)
+        if result.returncode == 0:
+            return result.stdout.strip()
+        drive, rest = value[0].lower(), value[2:].lstrip("/")
+        return f"/mnt/{drive}/{rest}"
     if shutil.which("cygpath"):
         return subprocess.check_output(["cygpath", "-u", value], text=True).strip()
     return value
