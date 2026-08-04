@@ -9,9 +9,14 @@ help_output="$(bash "${entry}" --help)"
 
 for expected in \
   './yu.sh setup' \
+  './yu.sh install' \
+  './yu.sh doctor' \
+  './yu.sh finalize --resume' \
   './yu.sh 1-4 --resume' \
   '--analysis-project' \
-  '--path-prompt-mode'
+  '--path-prompt-mode' \
+  '--supplement-workbook-file' \
+  '--python-exe'
 do
   if [[ "${help_output}" != *"${expected}"* ]]; then
     printf 'Missing shell help contract: %s\n' "${expected}" >&2

@@ -92,9 +92,7 @@ yur_write_cmest_article_qc <- function(cfg, result, nboot) {
       proportion_mediated_pct >= 0 & proportion_mediated_pct <= 100
   ]
   official_rows <- official_mediators <- official_outcomes <- official_exposures <- NA_integer_
-  workbook <- file.path(
-    cfg$project_dir, "references", "raw", "pwaf072_supplementary_table_1.xlsx"
-  )
+  workbook <- cfg$supplement_workbook_file
   if (file.exists(workbook) && requireNamespace("readxl", quietly = TRUE)) {
     official <- as.data.table(readxl::read_excel(workbook, sheet = "S16", skip = 1))
     setnames(official, trimws(names(official)))
@@ -188,9 +186,7 @@ yur_write_cmest_article_qc <- function(cfg, result, nboot) {
 }
 
 yur_write_mediation_numeric_comparison <- function(cfg, res) {
-  workbook <- file.path(
-    cfg$project_dir, "references", "raw", "pwaf072_supplementary_table_1.xlsx"
-  )
+  workbook <- cfg$supplement_workbook_file
   if (!file.exists(workbook) || !requireNamespace("readxl", quietly = TRUE)) return(invisible(NULL))
 
   official <- as.data.table(readxl::read_excel(workbook, sheet = "S16", skip = 1))

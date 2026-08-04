@@ -7,6 +7,8 @@
   "panel_mapping_file": "data.BIG/gwas/ppp/olink_protein_map_3k_v1.tsv",
   "pqtl_root": "ppp/clean",
   "mr_outcome_lookup_dir": "analysis/yu_proteomic_repo_v3/11_mr/outcome_lookup",
+  "supplement_workbook_file": "references/raw/pwaf072_supplementary_table_1.xlsx",
+  "supplement_methods_file": "references/raw/pwaf072_supplementary_figure_1.pdf",
   "olink_processing_start_date_file": "references/raw/olink_processing_start_date.dat",
   "followup_cutoff": "2023-09-30",
   "train_fraction": 0.6666666667,

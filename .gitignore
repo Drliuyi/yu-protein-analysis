@@ -30,6 +30,10 @@ Rplots.pdf
 
 # Downloaded publication/reference assets
 references/raw/
+!references/raw/
+references/raw/*
+!references/raw/pwaf072_supplementary_table_1.xlsx
+!references/raw/pwaf072_supplementary_figure_1.pdf
 
 # Runtime environments and caches
 __pycache__/

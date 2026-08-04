@@ -1,0 +1,57 @@
+name: project checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  shell-python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+          cache: pip
+      - run: python -m pip install -r f/config/requirements-py39.txt
+      - run: bash f/tests/test_shell_entrypoint.sh
+      - run: python f/tests/test_full_reproduction.py
+      - run: python f/tests/test_trainer.py
+      - run: python f/tests/test_yys_v2_lightgbm.py
+      - run: python f/tests/test_directnas_windows.py
+      - run: python f/tests/test_batched_prs_score.py
+
+  powershell:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - shell: pwsh
+        run: ./f/tests/test_step_runner_parse.ps1
+      - shell: pwsh
+        run: ./yu.ps1 -Step help
+
+  r-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "4.3.2"
+          use-public-rspm: true
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::data.table
+            any::jsonlite
+            any::digest
+            any::survival
+            any::pROC
+            any::ggplot2
+            any::patchwork
+            any::ggrepel
+            any::igraph
+            any::scales
+      - run: Rscript --vanilla f/tests/test_full_reproduction.R
+      - run: Rscript --vanilla f/tests/test_prs_reference_contract.R
+      - run: Rscript --vanilla f/tests/test_figure6_systems.R
+      - run: Rscript --vanilla f/tests/test_figure_smoke.R

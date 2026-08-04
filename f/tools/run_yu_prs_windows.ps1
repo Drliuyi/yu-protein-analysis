@@ -17,6 +17,8 @@ param(
   [string]$NasMountRoot = "/mnt/z/projects/genotype_pc_nas/imputed_pgen_autosomes",
   [string]$WindowsNasDrive = "Z:",
   [string]$WindowsNasRoot = "Z:/projects/genotype_pc_nas/imputed_pgen_autosomes",
+  [string]$RscriptExe = $env:YU_RSCRIPT,
+  [string]$PythonExe = $env:YU_PYTHON,
   [switch]$Resume,
   [switch]$Force,
   [switch]$ConfirmHeavy,
@@ -35,15 +37,59 @@ $FullRFile = Join-Path $ProjectDir "f/entry/99_run_yu_full_reproduction.R"
 $WindowsScorer = Join-Path $ProjectDir "f/tools/score_prs_directnas_windows.py"
 $ToolsBin = Join-Path $ProjectDir "f/tools/bin"
 $Plink2Windows = Join-Path $ToolsBin "plink2.exe"
-$PythonWindows = @(
-  "C:/Users/Dr.Liuyi/AppData/Local/Programs/Python/Python312/python.exe",
-  "C:/Users/Dr.Liuyi/anaconda3/envs/tf_gpu/python.exe"
-) | Where-Object { Test-Path $_ } | Select-Object -First 1
-$Rscript = @(
-  "C:/Program Files/R/R-4.3.2/bin/x64/Rscript.exe",
-  "C:/Program Files/R/R-4.5.1/bin/x64/Rscript.exe"
-) | Where-Object { Test-Path $_ } | Select-Object -First 1
-if (-not $Rscript) { throw "Rscript not found." }
+
+function Resolve-Executable {
+  param(
+    [string]$ExplicitPath,
+    [string[]]$PreferredPaths,
+    [string[]]$Commands,
+    [string]$Label
+  )
+  if ($ExplicitPath) {
+    if (-not (Test-Path $ExplicitPath -PathType Leaf)) {
+      throw "$Label override does not exist: $ExplicitPath"
+    }
+    return (Resolve-Path $ExplicitPath).Path
+  }
+  foreach ($path in $PreferredPaths) {
+    if ($path -and (Test-Path $path -PathType Leaf)) { return (Resolve-Path $path).Path }
+  }
+  foreach ($command in $Commands) {
+    $resolved = Get-Command $command -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($resolved) { return $resolved.Source }
+  }
+  throw "$Label was not found. Supply the explicit runtime path or set its YU_* environment variable."
+}
+
+$Rscript = $null
+$PythonWindows = $null
+
+function Get-RscriptRuntime {
+  if (-not $script:Rscript) {
+    $script:Rscript = Resolve-Executable -ExplicitPath $RscriptExe -Label "Rscript" `
+      -PreferredPaths @(
+        "C:/Program Files/R/R-4.5.1/bin/x64/Rscript.exe",
+        "C:/Program Files/R/R-4.3.2/bin/x64/Rscript.exe"
+      ) -Commands @("Rscript.exe", "Rscript")
+  }
+  return $script:Rscript
+}
+
+function Get-PythonRuntime {
+  if (-not $script:PythonWindows) {
+    $preferred = @()
+    if ($env:USERPROFILE) {
+      $preferred += Join-Path $env:USERPROFILE "anaconda3/envs/yu_proteomic_repo_py39/python.exe"
+      $preferred += Join-Path $env:USERPROFILE "miniconda3/envs/yu_proteomic_repo_py39/python.exe"
+    }
+    if ($env:LOCALAPPDATA) {
+      $preferred += Join-Path $env:LOCALAPPDATA "Programs/Python/Python39/python.exe"
+    }
+    $script:PythonWindows = Resolve-Executable -ExplicitPath $PythonExe -Label "Python" `
+      -PreferredPaths $preferred -Commands @("python.exe", "python3.exe", "python")
+  }
+  return $script:PythonWindows
+}
 if ($Mode -ne "monitor") {
   New-Item -ItemType Directory -Force -Path $LogDir, $PrsDir | Out-Null
 }
@@ -55,6 +101,7 @@ function Convert-ToWslPath([string]$Path) {
 }
 
 function Invoke-PrsR([string]$Stage, [string]$Endpoint = "all") {
+  $runtime = Get-RscriptRuntime
   $stamp = Get-Date -Format "yyyyMMdd_HHmmss"
   $log = Join-Path $LogDir ("prs_{0}_{1}.log" -f $Stage, $stamp)
   $argsList = @(
@@ -67,7 +114,7 @@ function Invoke-PrsR([string]$Stage, [string]$Endpoint = "all") {
   Write-Host "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') | PRS R stage=$Stage | log=$log"
   $old = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
-  & $Rscript @argsList 2>&1 | Tee-Object -FilePath $log
+  & $runtime @argsList 2>&1 | Tee-Object -FilePath $log
   $code = $LASTEXITCODE
   $ErrorActionPreference = $old
   if ($code -ne 0) { throw "PRS R stage $Stage failed with exit code $code. See $log" }
@@ -111,7 +158,8 @@ function Install-Plink2Windows {
 }
 
 function Invoke-PrsDirectNas {
-  if (-not $PythonWindows) { throw "Windows Python 3 was not found." }
+  $runtime = Get-PythonRuntime
+  Test-PrsPythonEnvironment
   if (-not (Test-Path $WindowsScorer)) { throw "Missing Windows DirectNas scorer: $WindowsScorer" }
   $probe = Join-Path $WindowsNasRoot "chr1/pgen/chr1_imp.pgen"
   if (-not (Test-Path $probe)) {
@@ -130,10 +178,33 @@ function Invoke-PrsDirectNas {
   Write-Host "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') | Windows DirectNas PRS scoring | log=$log"
   $old = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
-  & $PythonWindows @argsList 2>&1 | Tee-Object -FilePath $log
+  & $runtime @argsList 2>&1 | Tee-Object -FilePath $log
   $code = $LASTEXITCODE
   $ErrorActionPreference = $old
   if ($code -ne 0) { throw "Windows DirectNas PRS scoring failed with exit code $code. See $log" }
+}
+
+function Test-PrsPythonEnvironment {
+  $runtime = Get-PythonRuntime
+  $code = @"
+import json, sys
+import numpy, pandas, scipy
+print(json.dumps({
+    "python": ".".join(map(str, sys.version_info[:3])),
+    "numpy": numpy.__version__,
+    "pandas": pandas.__version__,
+    "scipy": scipy.__version__
+}))
+"@
+  $json = & $runtime -c $code
+  if ($LASTEXITCODE -ne 0) {
+    throw "Python PRS environment validation failed. Run '.\yu.ps1 -Step install' or supply -PythonExe."
+  }
+  $versions = $json | ConvertFrom-Json
+  $majorMinor = (($versions.python -split '\.')[0..1] -join '.')
+  if ($majorMinor -ne "3.9") {
+    throw "PRS Python must be 3.9 for the frozen environment; found $($versions.python) at $runtime."
+  }
 }
 
 function Invoke-PrsScore {
@@ -151,6 +222,7 @@ function Get-PrsEndpoints {
 }
 
 function Invoke-PrsAssociations {
+  $runtime = Get-RscriptRuntime
   if ($AssociationJobs -lt 1) { throw "AssociationJobs must be >= 1." }
   $endpoints = @(Get-PrsEndpoints)
   $jobs = [Math]::Min($AssociationJobs, $endpoints.Count)
@@ -174,7 +246,7 @@ function Invoke-PrsAssociations {
       )
       if ($Resume) { $argsList += "--resume=true" }
       if ($Force) { $argsList += "--force=true" }
-      $process = Start-Process -FilePath $Rscript -ArgumentList $argsList `
+      $process = Start-Process -FilePath $runtime -ArgumentList $argsList `
         -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru -WindowStyle Hidden
       $resultFile = Join-Path $PrsDir ("prs_protein_associations_{0}.csv.gz" -f $endpoint)
       $doneFile = Join-Path $PrsDir ("prs_association_{0}.done.json" -f $endpoint)
@@ -214,6 +286,7 @@ function Invoke-PrsAssociations {
 }
 
 function Invoke-PrsFigure {
+  $runtime = Get-RscriptRuntime
   $stamp = Get-Date -Format "yyyyMMdd_HHmmss"
   $log = Join-Path $LogDir ("prs_figure_{0}.log" -f $stamp)
   $argsList = @(
@@ -222,7 +295,7 @@ function Invoke-PrsFigure {
     "--phenotype_rds=$PhenotypeRds", "--endpoint_subset=all", "--workers=$Workers",
     "--yys_mode=off", "--prediction_panel_mode=local_reselected"
   )
-  & $Rscript @argsList 2>&1 | Tee-Object -FilePath $log
+  & $runtime @argsList 2>&1 | Tee-Object -FilePath $log
   if ($LASTEXITCODE -ne 0) { throw "Figure stage failed. See $log" }
 }
 
@@ -265,6 +338,7 @@ Important:
   -GenotypeMode DirectNas runs Windows PLINK2 directly against -WindowsNasRoot (default Z:/projects/...). It does not mount Z: in WSL and does not copy genotypes to D:.
   -ScoreJobs controls concurrent chromosome jobs for DirectNas (default 2). With -Workers 16 and -MemoryMb 48000, each receives 8 threads and 24000 MB.
   StreamZspace always uses one chromosome job because each chromosome is copied to D-drive scratch.
+  -RscriptExe and -PythonExe override automatic runtime discovery; YU_RSCRIPT and YU_PYTHON are equivalent environment variables.
 "@
 }
 

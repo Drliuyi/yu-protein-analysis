@@ -6,6 +6,12 @@ $ErrorActionPreference = "Stop"
 $files = @(
   (Join-Path $ProjectDir "yu.ps1"),
   (Join-Path $ProjectDir "f/tools/run_yu_steps_windows.ps1"),
+  (Join-Path $ProjectDir "f/tools/run_yu_full_reproduction_windows.ps1"),
+  (Join-Path $ProjectDir "f/tools/run_yu_prs_windows.ps1"),
+  (Join-Path $ProjectDir "f/tools/run_yu_yys_windows.ps1"),
+  (Join-Path $ProjectDir "f/tools/run_yu_yys_v2_lightgbm_windows.ps1"),
+  (Join-Path $ProjectDir "f/tools/install_yu_dependencies_windows.ps1"),
+  (Join-Path $ProjectDir "f/tools/setup_yu_reproduction_python_windows.ps1"),
   (Join-Path $ProjectDir "f/tools/package_yu_project.ps1")
 )
 

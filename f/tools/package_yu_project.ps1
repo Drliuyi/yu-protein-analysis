@@ -21,11 +21,18 @@ New-Item -ItemType Directory -Force -Path $packageRoot | Out-Null
 function Test-PackageFile([string]$RelativePath) {
   $value = ($RelativePath -replace "\\", "/")
   if ($value -match "(^|/)__pycache__(/|$)") { return $false }
+  if ($value -match "(^|/)\.git(/|$)") { return $false }
   if ($value -match "(^|/)(analysis|archive|backups|dist|legacy)(/|$)") { return $false }
   if ($value -match "(^|/)f/tools/bin(/|$)") { return $false }
   if ($value -match "(?i)\.pyc$") { return $false }
   if ($value -match "(?i)(^|/)Rplots\.pdf$") { return $false }
   if ($value -match "(?i)(^|/)\.DS_Store$") { return $false }
+  if ($value -match "^references/raw/") {
+    return $value -in @(
+      "references/raw/pwaf072_supplementary_table_1.xlsx",
+      "references/raw/pwaf072_supplementary_figure_1.pdf"
+    )
+  }
   return $true
 }
 
@@ -41,6 +48,23 @@ try {
     $parent = Split-Path -Parent $destination
     New-Item -ItemType Directory -Force -Path $parent | Out-Null
     Copy-Item $file.FullName $destination -Force
+  }
+
+  $requiredPackageFiles = @(
+    "yu.ps1", "yu.sh", "README.md", "LICENSE",
+    "f/tools/run_yu_steps_windows.ps1",
+    "f/tools/run_yu_full_reproduction_windows.ps1",
+    "f/tools/run_yu_prs_windows.ps1",
+    "f/tools/install_yu_dependencies_windows.ps1",
+    "f/config/requirements-py39.txt",
+    "references/raw/pwaf072_supplementary_table_1.xlsx",
+    "references/raw/pwaf072_supplementary_figure_1.pdf"
+  )
+  $missingPackageFiles = @($requiredPackageFiles | Where-Object {
+    -not (Test-Path (Join-Path $packageRoot $_) -PathType Leaf)
+  })
+  if ($missingPackageFiles.Count -gt 0) {
+    throw "Release package is incomplete:`n$($missingPackageFiles -join "`n")"
   }
 
   $manifestRows = @(Get-ChildItem $packageRoot -Recurse -File | ForEach-Object {

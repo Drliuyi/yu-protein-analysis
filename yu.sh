@@ -9,8 +9,11 @@ show_help() {
 Yu Protein Analysis shell entry
 
 Usage:
+  ./yu.sh install
+  ./yu.sh doctor
   ./yu.sh setup
   ./yu.sh 1-4 --resume
+  ./yu.sh finalize --resume
   ./yu.sh --step figures --force
   ./yu.sh --step 4 --disease cad --workers 16 --resume
 
@@ -35,7 +38,16 @@ Path options:
   --raw-protein-file PATH      Unimputed protein table.
   --phenotype-rds PATH         Phenotype RDS.
   --panel-mapping-file PATH    Olink mapping table.
+  --supplement-workbook-file PATH
+                                Official Tables S1-S26 workbook.
+  --supplement-methods-file PATH
+                                Official supplementary methods PDF.
+  --olink-processing-start-date-file PATH
+                                UKB Olink processing-date resource.
   --windows-nas-root PATH      Windows genotype root.
+  --rscript-exe PATH           Rscript override.
+  --python-exe PATH            Frozen Python 3.9 override.
+  --conda-exe PATH             Conda override used by install.
   --path-prompt-mode MODE      Auto, Dialog, Console, or Off.
   --reset-paths                Rebuild the saved local path profile.
 
@@ -82,6 +94,9 @@ while [[ $# -gt 0 ]]; do
     --phenotype-rds) require_value "$@"; ps_args+=("-PhenotypeRds" "$2"); shift 2 ;;
     --raw-phenotype-file) require_value "$@"; ps_args+=("-RawPhenotypeFile" "$2"); shift 2 ;;
     --panel-mapping-file) require_value "$@"; ps_args+=("-PanelMappingFile" "$2"); shift 2 ;;
+    --supplement-workbook-file) require_value "$@"; ps_args+=("-SupplementWorkbookFile" "$2"); shift 2 ;;
+    --supplement-methods-file) require_value "$@"; ps_args+=("-SupplementMethodsFile" "$2"); shift 2 ;;
+    --olink-processing-start-date-file) require_value "$@"; ps_args+=("-OlinkProcessingStartDateFile" "$2"); shift 2 ;;
     --cmr-feature-file) require_value "$@"; ps_args+=("-CmrFeatureFile" "$2"); shift 2 ;;
     --pqtl-root) require_value "$@"; ps_args+=("-PqtlRoot" "$2"); shift 2 ;;
     --mr-outcome-lookup-dir) require_value "$@"; ps_args+=("-MrOutcomeLookupDir" "$2"); shift 2 ;;
@@ -98,6 +113,9 @@ while [[ $# -gt 0 ]]; do
     --memory-mb) require_value "$@"; ps_args+=("-MemoryMb" "$2"); shift 2 ;;
     --genotype-mode) require_value "$@"; ps_args+=("-GenotypeMode" "$2"); shift 2 ;;
     --windows-nas-root) require_value "$@"; ps_args+=("-WindowsNasRoot" "$2"); shift 2 ;;
+    --rscript-exe) require_value "$@"; ps_args+=("-RscriptExe" "$2"); shift 2 ;;
+    --python-exe) require_value "$@"; ps_args+=("-PythonExe" "$2"); shift 2 ;;
+    --conda-exe) require_value "$@"; ps_args+=("-CondaExe" "$2"); shift 2 ;;
     --nas-mount-root) require_value "$@"; ps_args+=("-NasMountRoot" "$2"); shift 2 ;;
     --protein-panel) require_value "$@"; ps_args+=("-ProteinPanel" "$2"); shift 2 ;;
     --model-protein-file) require_value "$@"; ps_args+=("-ModelProteinFile" "$2"); shift 2 ;;

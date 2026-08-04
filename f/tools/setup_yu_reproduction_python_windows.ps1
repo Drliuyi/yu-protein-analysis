@@ -1,10 +1,23 @@
 param(
-  [string]$CondaExe = "C:/Users/Dr.Liuyi/anaconda3/Scripts/conda.exe",
-  [string]$EnvironmentName = "yu_proteomic_repo_py39"
+  [string]$CondaExe = $env:YU_CONDA,
+  [string]$EnvironmentName = "yu_proteomic_repo_py39",
+  [string]$RequirementsFile = (Join-Path (Split-Path -Parent $PSScriptRoot) "config/requirements-py39.txt")
 )
 
 $ErrorActionPreference = "Stop"
-if (-not (Test-Path $CondaExe)) { throw "Conda executable not found: $CondaExe" }
+if (-not $CondaExe) {
+  $preferred = @()
+  if ($env:USERPROFILE) {
+    $preferred += Join-Path $env:USERPROFILE "anaconda3/Scripts/conda.exe"
+    $preferred += Join-Path $env:USERPROFILE "miniconda3/Scripts/conda.exe"
+  }
+  $preferred += @("C:/ProgramData/anaconda3/Scripts/conda.exe", "C:/ProgramData/miniconda3/Scripts/conda.exe")
+  $CondaExe = $preferred | Where-Object { Test-Path $_ -PathType Leaf } | Select-Object -First 1
+}
+if (-not $CondaExe -or -not (Test-Path $CondaExe -PathType Leaf)) {
+  throw "Conda executable not found. Supply -CondaExe or set YU_CONDA."
+}
+if (-not (Test-Path $RequirementsFile -PathType Leaf)) { throw "Frozen requirements file not found: $RequirementsFile" }
 
 $CondaRoot = Split-Path -Parent (Split-Path -Parent $CondaExe)
 $PythonExe = Join-Path $CondaRoot ("envs/{0}/python.exe" -f $EnvironmentName)
@@ -13,8 +26,7 @@ if (-not (Test-Path $PythonExe)) {
   if ($LASTEXITCODE -ne 0) { throw "Failed to create conda environment $EnvironmentName" }
 }
 
-& $PythonExe -m pip install --disable-pip-version-check --no-input `
-  numpy==1.26.4 scipy==1.11.4 pandas==2.1.4 scikit-learn==1.3.2 lightgbm==3.3.2
+& $PythonExe -m pip install --disable-pip-version-check --no-input -r $RequirementsFile
 if ($LASTEXITCODE -ne 0) { throw "Failed to install the frozen reproduction packages." }
 
 $code = "import json,sys,lightgbm,sklearn,pandas,numpy,scipy; print(json.dumps(dict(python='.'.join(map(str,sys.version_info[:3])),lightgbm=lightgbm.__version__,sklearn=sklearn.__version__,pandas=pandas.__version__,numpy=numpy.__version__,scipy=scipy.__version__)))"

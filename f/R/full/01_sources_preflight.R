@@ -3,10 +3,33 @@ yur_sources <- function(cfg) {
   missing <- required[!vapply(required, requireNamespace, logical(1), quietly = TRUE)]
   if (length(missing)) stop("Missing source-audit packages: ", paste(missing, collapse = ", "))
 
-  workbook <- file.path(cfg$project_dir, "references", "raw", "pwaf072_supplementary_table_1.xlsx")
-  methods_pdf <- file.path(cfg$project_dir, "references", "raw", "pwaf072_supplementary_figure_1.pdf")
+  workbook <- cfg$supplement_workbook_file
+  methods_pdf <- cfg$supplement_methods_file
   if (!file.exists(workbook) || !file.exists(methods_pdf)) {
-    stop("Official supplementary workbook/PDF is missing from references/raw.")
+    stop(
+      "Official supplementary workbook/PDF is missing. Resolved files: ",
+      workbook, "; ", methods_pdf, ". Run yu.ps1 -Step setup or supply explicit paths."
+    )
+  }
+
+  expected_manifest <- file.path(cfg$project_dir, "references", "SOURCE_MANIFEST.csv")
+  if (!file.exists(expected_manifest)) stop("Reference source manifest is missing: ", expected_manifest)
+  expected <- fread(expected_manifest)
+  expected <- expected[source_id %in% c("supplement_tables", "supplement_methods")]
+  if (nrow(expected) != 2L || any(!nzchar(expected$sha256))) {
+    stop("Reference source manifest does not contain both frozen supplement hashes.")
+  }
+  actual_hash <- c(
+    supplement_tables = yur_sha_file(workbook),
+    supplement_methods = yur_sha_file(methods_pdf)
+  )
+  expected_hash <- setNames(tolower(expected$sha256), expected$source_id)
+  mismatched <- names(actual_hash)[tolower(actual_hash) != expected_hash[names(actual_hash)]]
+  if (length(mismatched)) {
+    stop(
+      "Official supplement SHA256 validation failed: ", paste(mismatched, collapse = ", "),
+      ". Restore the tracked publication files before analysis."
+    )
   }
 
   sheets <- readxl::excel_sheets(workbook)
@@ -190,9 +213,11 @@ yur_preflight <- function(cfg) {
   if (any(!pkg$available)) stop("Missing R packages: ", paste(pkg[!available, package], collapse = ", "))
 
   inputs <- data.table(
-    role = c("phenotype", "raw_phenotype", "raw_protein", "panel_mapping", "olink_processing_dates",
+    role = c("phenotype", "raw_phenotype", "raw_protein", "panel_mapping",
+             "supplement_workbook", "supplement_methods", "olink_processing_dates",
              "outcome_dictionary", "field_dictionary", "method_provenance"),
     path = c(cfg$phenotype_rds, cfg$raw_phenotype_file, cfg$raw_protein_file, cfg$panel_mapping_file,
+             cfg$supplement_workbook_file, cfg$supplement_methods_file,
              cfg$olink_processing_start_date_file, cfg$outcomes_file, cfg$field_map_file, cfg$method_provenance_file)
   )
   inputs[, exists := file.exists(path)]

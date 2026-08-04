@@ -10,6 +10,8 @@ param(
   [int]$SplitSeed = 20260715,
   [int]$InnerSeed = 20260716,
   [int]$Seed = 20260721,
+  [string]$RscriptExe = $env:YU_RSCRIPT,
+  [string]$PythonExe = $env:YU_PYTHON,
   [switch]$Resume
 )
 
@@ -22,8 +24,32 @@ $AnalysisDir = Join-Path $AnalysisRoot $AnalysisProject
 if (-not $InputDir) { $InputDir = Join-Path $AnalysisDir '00_inputs' }
 $CacheDir = Join-Path $AnalysisDir '01_cache'
 $LogDir = Join-Path $AnalysisDir '00_logs'
-$Rscript = 'C:/Program Files/R/R-4.3.2/bin/x64/Rscript.exe'
-$Python = 'C:/Users/Dr.Liuyi/anaconda3/envs/yu_proteomic_repo_py39/python.exe'
+
+function Resolve-Runtime([string]$Explicit, [string[]]$Preferred, [string[]]$Commands, [string]$Label) {
+  if ($Explicit) {
+    if (-not (Test-Path $Explicit -PathType Leaf)) { throw "$Label override not found: $Explicit" }
+    return (Resolve-Path $Explicit).Path
+  }
+  foreach ($path in $Preferred) {
+    if ($path -and (Test-Path $path -PathType Leaf)) { return (Resolve-Path $path).Path }
+  }
+  foreach ($command in $Commands) {
+    $resolved = Get-Command $command -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($resolved) { return $resolved.Source }
+  }
+  throw "$Label was not found. Supply its explicit path or set the matching YU_* environment variable."
+}
+
+$pythonPreferred = @()
+if ($env:USERPROFILE) {
+  $pythonPreferred += Join-Path $env:USERPROFILE 'anaconda3/envs/yu_proteomic_repo_py39/python.exe'
+  $pythonPreferred += Join-Path $env:USERPROFILE 'miniconda3/envs/yu_proteomic_repo_py39/python.exe'
+}
+$Rscript = Resolve-Runtime $RscriptExe @(
+  'C:/Program Files/R/R-4.5.1/bin/x64/Rscript.exe',
+  'C:/Program Files/R/R-4.3.2/bin/x64/Rscript.exe'
+) @('Rscript.exe', 'Rscript') 'Rscript'
+$Python = Resolve-Runtime $PythonExe $pythonPreferred @('python.exe', 'python3.exe', 'python') 'Python 3.9'
 
 if ($Mode -eq 'help') {
   @'

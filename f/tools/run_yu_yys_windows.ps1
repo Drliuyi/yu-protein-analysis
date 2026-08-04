@@ -6,6 +6,8 @@ param(
   [string]$RawProteinFile="D:/data/ukb/phe/raw/prot_full_unimputed.tsv",
   [string]$PhenotypeRds="D:/data/ukb/phe/Rdata/all.rds",
   [string]$PanelMappingFile="D:/data.BIG/gwas/ppp/olink_protein_map_3k_v1.tsv",
+  [string]$RscriptExe=$env:YU_RSCRIPT,
+  [string]$PythonExe=$env:YU_PYTHON,
   [int]$Workers=16,
   [int]$BootstrapN=1000,
   [switch]$Resume,
@@ -19,9 +21,15 @@ $Config=Join-Path $ProjectDir "f/config/defaults.json"
 if(-not $AnalysisRoot){$AnalysisRoot=Join-Path $Dir0 "analysis"}
 $AnalysisDir=Join-Path $AnalysisRoot $AnalysisProject
 $LogDir=Join-Path $AnalysisDir "00_logs"; New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
-$Rscript=@("C:/Program Files/R/R-4.3.2/bin/x64/Rscript.exe","C:/Program Files/R/R-4.5.1/bin/x64/Rscript.exe") | Where-Object {Test-Path $_} | Select-Object -First 1
-$Python=@("C:/Users/Dr.Liuyi/anaconda3/envs/tf_gpu/python.exe","C:/Users/Dr.Liuyi/anaconda3/python.exe") | Where-Object {Test-Path $_} | Select-Object -First 1
-if(-not $Rscript){throw "Rscript not found"}; if(-not $Python){throw "Python with lightgbm not found"}
+function Resolve-Runtime([string]$Explicit,[string[]]$Preferred,[string[]]$Commands,[string]$Label){
+  if($Explicit){if(-not(Test-Path $Explicit -PathType Leaf)){throw "$Label override not found: $Explicit"};return (Resolve-Path $Explicit).Path}
+  foreach($path in $Preferred){if($path -and (Test-Path $path -PathType Leaf)){return (Resolve-Path $path).Path}}
+  foreach($command in $Commands){$resolved=Get-Command $command -ErrorAction SilentlyContinue | Select-Object -First 1;if($resolved){return $resolved.Source}}
+  throw "$Label was not found. Supply its explicit path or set the matching YU_* environment variable."
+}
+$pythonPreferred=@();if($env:USERPROFILE){$pythonPreferred+=Join-Path $env:USERPROFILE "anaconda3/envs/yu_proteomic_repo_py39/python.exe";$pythonPreferred+=Join-Path $env:USERPROFILE "miniconda3/envs/yu_proteomic_repo_py39/python.exe"}
+$Rscript=Resolve-Runtime $RscriptExe @("C:/Program Files/R/R-4.5.1/bin/x64/Rscript.exe","C:/Program Files/R/R-4.3.2/bin/x64/Rscript.exe") @("Rscript.exe","Rscript") "Rscript"
+$Python=Resolve-Runtime $PythonExe $pythonPreferred @("python.exe","python3.exe","python") "Python 3.9 with LightGBM"
 
 function Invoke-RStage([string]$Stage){
   $log=Join-Path $LogDir ("{0}_{1}.log" -f $Stage,(Get-Date -Format "yyyyMMdd_HHmmss"))

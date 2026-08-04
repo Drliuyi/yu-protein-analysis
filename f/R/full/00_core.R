@@ -96,6 +96,14 @@ yur_init_config <- function(project_dir, cli) {
   cfg$cmr_feature_file <- yur_abs_path(cfg$cmr_feature_file, cfg$dir0)
   cfg$panel_mapping_file <- yur_abs_path(cfg$panel_mapping_file, cfg$dir0)
   cfg$pqtl_root <- yur_abs_path(cfg$pqtl_root %||% "ppp/clean", cfg$dir0)
+  cfg$supplement_workbook_file <- yur_abs_path(
+    cfg$supplement_workbook_file %||% "references/raw/pwaf072_supplementary_table_1.xlsx",
+    cfg$dir0, cfg$project_dir
+  )
+  cfg$supplement_methods_file <- yur_abs_path(
+    cfg$supplement_methods_file %||% "references/raw/pwaf072_supplementary_figure_1.pdf",
+    cfg$dir0, cfg$project_dir
+  )
   cfg$olink_processing_start_date_file <- yur_abs_path(
     cfg$olink_processing_start_date_file, cfg$dir0, cfg$project_dir
   )
@@ -358,6 +366,8 @@ yur_print_help <- function() {
     "  --cmr_metric_subset=all or comma-separated metric IDs such as LVEDV,LVEF\n",
     "  --pqtl_root=<local UKB-PPP protein pQTL directories>\n",
     "  --mr_outcome_lookup_dir=<13 extracted full-GWAS lookup files>\n",
+    "  --supplement_workbook_file=<official Tables S1-S26 XLSX>\n",
+    "  --supplement_methods_file=<official supplementary methods PDF>\n",
     "  --olink_processing_start_date_file=<UKB Resource 1019 table>\n",
     "  --workers=16 --bootstrap_n=1000 --resume=true\n",
     "  --cmest_shard_index=1 --cmest_shard_count=8 --cmest_pilot_nboot=20\n",

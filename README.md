@@ -9,21 +9,30 @@ incident cardiovascular outcomes. The frozen main workflow uses
 The project exposes equivalent PowerShell and WSL/Git Bash entry points:
 
 ```powershell
-.\yu.ps1 -Step "1-4" -Resume
+.\yu.ps1 -Step install
+.\yu.ps1 -Step setup
+.\yu.ps1 -Step doctor
+.\yu.ps1 -Step all -ConfirmHeavy -Resume
 ```
 
 ```bash
-./yu.sh 1-4 --resume
+./yu.sh install
+./yu.sh setup
+./yu.sh doctor
+./yu.sh all --confirm-heavy --resume
 ```
 
 Useful commands:
 
 ```powershell
 .\yu.ps1 -Step help       # list steps, parameters, diseases and resources
+.\yu.ps1 -Step install    # install frozen Python 3.9 and all required R packages
 .\yu.ps1 -Step setup      # resolve paths, save them, do not run analysis
+.\yu.ps1 -Step doctor     # fail-fast check before computation
 .\yu.ps1 -Step paths      # show current defaults and saved path profile
 .\yu.ps1 -Step status     # read-only progress check
-.\yu.ps1 -Step figures    # rebuild final figures and report from existing results
+.\yu.ps1 -Step finalize   # build and verify the complete Figure 1-6 package
+.\yu.ps1 -Step package    # create source ZIP and SHA256 manifest
 ```
 
 Shell equivalents include `./yu.sh setup`, `./yu.sh status`,
@@ -31,7 +40,12 @@ Shell equivalents include `./yu.sh setup`, `./yu.sh status`,
 wrapper around `yu.ps1`; it does not contain a second analysis implementation.
 
 `-Step` accepts one number, lists (`"1,3,4"`), ranges (`"1-4"`), `core`,
-`downstream`, `all`, `figures`, `setup`, `paths`, and `status`.
+`downstream`, `all`, `figures`, `finalize`, `doctor`, `install`, `package`,
+`setup`, `paths`, and `status`.
+
+`all` runs the complete local analysis. `finalize` requires completed Steps
+1-10 and refuses to report success unless Figures 1-6 exist as non-empty PDF,
+PNG and TIFF files together with `RESULTS_AND_QC.md`.
 
 ## Paths
 
@@ -60,6 +74,10 @@ variables take precedence. Use `-ResetPaths` to rebuild the profile or
 `-PathPromptMode Off` for a non-interactive job that must fail immediately on a
 missing path.
 
+Runtime overrides are `YU_RSCRIPT`, `YU_PYTHON` and `YU_CONDA`, or the matching
+`-RscriptExe`, `-PythonExe` and `-CondaExe` options. No user-account path is
+hard-coded.
+
 ## Layout
 
 ```text
@@ -75,6 +93,7 @@ f/
   tests/                static and smoke tests
 docs/                   methods, QC and operational notes
 references/             article supplements and source manifests
+.github/workflows/       automated shell, PowerShell, Python and R checks
 ```
 
 Only `yu.ps1` and `yu.sh` are intended for routine project operation. Files
@@ -100,6 +119,11 @@ debugging and audit.
 Steps 8 and 9 require `-ConfirmHeavy`. `-Resume` reuses valid markers and
 completed shards. Alternate diseases or protein panels must use a new
 `-AnalysisProject`; the frozen `yu_proteomic_repo_v3` tree is protected.
+
+The official open-access supplementary workbook and methods PDF required by
+the workflow are included and checksum-audited. UKB participant data, genotype,
+pQTL resources and the Olink processing-date file are not distributed; setup
+requests their local locations and records them in the machine-local profile.
 
 ## Scientific boundaries
 

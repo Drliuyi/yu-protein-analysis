@@ -50,6 +50,21 @@ Shell 等价命令为 `./yu.sh setup`。
 优先级为：命令参数/`YU_*` 环境变量 > 本机路径配置 > 黄老师默认路径。
 无人值守任务可加 `-PathPromptMode Off`，路径缺失时立即失败。
 
+首次部署建议依次执行：
+
+```powershell
+.\yu.ps1 -Step install
+.\yu.ps1 -Step setup
+.\yu.ps1 -Step doctor
+```
+
+- `install`：创建/校验冻结的 Python 3.9 环境，并安装 R、Python 依赖；
+- `setup`：解析并保存本机数据路径，不运行分析；
+- `doctor`：只读检查输入、运行环境和公开补充材料 SHA256，不写分析结果。
+
+三步均通过后，再启动计算。已有合格环境可跳过 `install`，但正式运行前仍应执行
+`doctor`。
+
 ## 步骤
 
 | Step | 内容 | 资源 |
@@ -94,11 +109,43 @@ Step 8 和 9 必须显式增加 `-ConfirmHeavy`。
 .\yu.ps1 -Step figures -Resume
 ```
 
+补齐系统生物学分析并生成最终 Figure 1-6 与报告：
+
+```powershell
+.\yu.ps1 -Step finalize -Resume
+```
+
+`finalize` 等价于 Step 10-11。Step 11 会核对 Figure 6B-D 的上游结果，并在
+Figure 1-6 任一 PDF、PNG、TIFF 缺失或为空时失败，不再把不完整图片包报告为完成。
+
 运行 PRS 与系统生物学：
 
 ```powershell
 .\yu.ps1 -Step "9-11" -ConfirmHeavy -Resume
 ```
+
+生成可提交的源码包（不包含 UKB 数据、结果目录或本机路径配置）：
+
+```powershell
+.\yu.ps1 -Step package
+```
+
+输出 ZIP、SHA256 和文件清单。公开补充表/方法 PDF 随源码包提供并在 preflight
+中核验哈希；UKB 数据、处理日期文件和其他受限输入仍需由本机路径提供。
+
+## 完整复现命令
+
+首次从源码完整复现：
+
+```powershell
+.\yu.ps1 -Step install
+.\yu.ps1 -Step setup
+.\yu.ps1 -Step doctor
+.\yu.ps1 -Step all -Workers 16 -CoxJobs 4 -ModelJobs 3 -ConfirmHeavy -Resume
+```
+
+`all` 严格执行 Step 1-11。若只需要基于已有 Step 1-9 结果补齐最终图片，使用
+`finalize`，不要重跑全面板 Cox、LightGBM 或 PRS。
 
 ## 更换疾病或模型蛋白
 

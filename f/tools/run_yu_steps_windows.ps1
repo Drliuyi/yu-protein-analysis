@@ -11,9 +11,15 @@ param(
   [string]$PhenotypeRds = "",
   [string]$RawPhenotypeFile = "",
   [string]$PanelMappingFile = "",
+  [string]$SupplementWorkbookFile = "",
+  [string]$SupplementMethodsFile = "",
+  [string]$OlinkProcessingStartDateFile = "",
   [string]$CmrFeatureFile = "",
   [string]$PqtlRoot = "",
   [string]$MrOutcomeLookupDir = "",
+  [string]$RscriptExe = $(if ($env:YU_RSCRIPT) { $env:YU_RSCRIPT } else { "" }),
+  [string]$PythonExe = $(if ($env:YU_PYTHON) { $env:YU_PYTHON } else { "" }),
+  [string]$CondaExe = $(if ($env:YU_CONDA) { $env:YU_CONDA } else { "" }),
   [Alias("EndpointSubset")]
   [string]$Disease = "all",
   [int]$Workers = 16,
@@ -147,6 +153,9 @@ $RawProteinFile = Initialize-PathValue "RawProteinFile" $RawProteinFile "raw_pro
 $PhenotypeRds = Initialize-PathValue "PhenotypeRds" $PhenotypeRds "phenotype_rds" ""
 $RawPhenotypeFile = Initialize-PathValue "RawPhenotypeFile" $RawPhenotypeFile "raw_phenotype_file" ""
 $PanelMappingFile = Initialize-PathValue "PanelMappingFile" $PanelMappingFile "panel_mapping_file" ""
+$SupplementWorkbookFile = Initialize-PathValue "SupplementWorkbookFile" $SupplementWorkbookFile "supplement_workbook_file" (Join-Path $ProjectDir "references/raw/pwaf072_supplementary_table_1.xlsx")
+$SupplementMethodsFile = Initialize-PathValue "SupplementMethodsFile" $SupplementMethodsFile "supplement_methods_file" (Join-Path $ProjectDir "references/raw/pwaf072_supplementary_figure_1.pdf")
+$OlinkProcessingStartDateFile = Initialize-PathValue "OlinkProcessingStartDateFile" $OlinkProcessingStartDateFile "olink_processing_start_date_file" (Join-Path $ProjectDir "references/raw/olink_processing_start_date.dat")
 $CmrFeatureFile = Initialize-PathValue "CmrFeatureFile" $CmrFeatureFile "cmr_feature_file" ""
 $PqtlRoot = Initialize-PathValue "PqtlRoot" $PqtlRoot "pqtl_root" ""
 $MrOutcomeLookupDir = Initialize-PathValue "MrOutcomeLookupDir" $MrOutcomeLookupDir "mr_outcome_lookup_dir" ""
@@ -163,6 +172,9 @@ $PathOverrides = @{
   PhenotypeRds = $PathSources.PhenotypeRds -ne "huang_default"
   RawPhenotypeFile = $PathSources.RawPhenotypeFile -ne "huang_default"
   PanelMappingFile = $PathSources.PanelMappingFile -ne "huang_default"
+  SupplementWorkbookFile = $PathSources.SupplementWorkbookFile -ne "huang_default"
+  SupplementMethodsFile = $PathSources.SupplementMethodsFile -ne "huang_default"
+  OlinkProcessingStartDateFile = $PathSources.OlinkProcessingStartDateFile -ne "huang_default"
   CmrFeatureFile = $PathSources.CmrFeatureFile -ne "huang_default"
   PqtlRoot = $PathSources.PqtlRoot -ne "huang_default"
   MrOutcomeLookupDir = $PathSources.MrOutcomeLookupDir -ne "huang_default"
@@ -193,6 +205,8 @@ Set-DerivedPaths
 
 $FullRunner = Join-Path $ProjectDir "f/tools/run_yu_full_reproduction_windows.ps1"
 $PrsRunner = Join-Path $ProjectDir "f/tools/run_yu_prs_windows.ps1"
+$InstallRunner = Join-Path $ProjectDir "f/tools/install_yu_dependencies_windows.ps1"
+$PackageRunner = Join-Path $ProjectDir "f/tools/package_yu_project.ps1"
 
 $StepCatalog = @(
   [pscustomobject]@{ Id = 1; Name = "Sources and preflight"; Requires = "none"; Resource = "light"; Action = "sources -> preflight" },
@@ -219,6 +233,10 @@ Usage:
   -Step core              Alias for steps 1-4.
   -Step downstream        Alias for steps 5-10.
   -Step all               Run steps 1-11; requires -ConfirmHeavy.
+  -Step finalize          Run steps 10-11 and verify the complete Figure 1-6 package.
+  -Step doctor            Read-only code, runtime, package and core-input check.
+  -Step install           Install the frozen Python and required R environments.
+  -Step package           Build a source-only ZIP plus SHA256 manifest.
   -Step status            Read-only monitor for the full and PRS workflows.
   -Step paths             Show Huang-lab defaults and the saved local profile.
   -Step setup             Resolve the core paths interactively, save them, and exit.
@@ -229,6 +247,12 @@ Usage:
                            automation fail immediately instead of prompting.
   -ResetPaths              Delete the saved local path profile and start again
                            from the Huang-lab D:/ defaults.
+  -RscriptExe PATH         Optional Rscript override; otherwise YU_RSCRIPT,
+                           PATH and standard Windows R locations are searched.
+  -PythonExe PATH          Optional frozen Python 3.9 override; otherwise
+                           YU_PYTHON, PATH and standard Conda locations are searched.
+  -CondaExe PATH           Optional Conda override used by -Step install;
+                           YU_CONDA is the equivalent environment variable.
 
 Disease and model-protein controls:
   -Disease all|cad|heart_failure|cad,heart_failure
@@ -324,11 +348,12 @@ function Assert-ModelPanelRequest {
 
 function Resolve-Steps([string]$Spec) {
   $value = $Spec.Trim().ToLowerInvariant()
-  if ($value -in @("help", "status")) { return @() }
+  if ($value -in @("help", "status", "doctor", "install", "package")) { return @() }
   if ($value -eq "all") { return @(1..11) }
   if ($value -eq "core") { return @(1..4) }
   if ($value -eq "downstream") { return @(5..10) }
   if ($value -eq "figures") { return @(11) }
+  if ($value -eq "finalize") { return @(10, 11) }
 
   $resolved = @()
   foreach ($token in @($value -split "[,; ]+" | Where-Object { $_ })) {
@@ -361,6 +386,9 @@ function Show-ResolvedPlan([int[]]$SelectedSteps) {
   Write-Host "  PHENOTYPE     : $PhenotypeRds"
   Write-Host "  RAW PHENOTYPE : $RawPhenotypeFile"
   Write-Host "  PANEL MAP     : $PanelMappingFile"
+  Write-Host "  SUPP TABLES   : $SupplementWorkbookFile"
+  Write-Host "  SUPP METHODS  : $SupplementMethodsFile"
+  Write-Host "  OLINK DATES   : $OlinkProcessingStartDateFile"
   Write-Host "  CMR FEATURES  : $CmrFeatureFile"
   Write-Host "  pQTL ROOT     : $PqtlRoot"
   Write-Host "  GENOTYPE      : $WindowsNasRoot"
@@ -498,6 +526,15 @@ function Resolve-SelectedInputPaths([int[]]$SelectedSteps) {
     $script:RawPhenotypeFile = Resolve-RequiredPath $RawPhenotypeFile "Raw phenotype file" "Leaf" "raw_phenotype_file"
     $script:PanelMappingFile = Resolve-RequiredPath $PanelMappingFile "Protein mapping file" "Leaf" "panel_mapping_file"
   }
+  if (@($SelectedSteps | Where-Object { $_ -in @(1, 7, 8, 11) }).Count -gt 0) {
+    $script:SupplementWorkbookFile = Resolve-RequiredPath $SupplementWorkbookFile "Official supplementary Tables S1-S26" "Leaf" "supplement_workbook_file"
+  }
+  if (1 -in $SelectedSteps) {
+    $script:SupplementMethodsFile = Resolve-RequiredPath $SupplementMethodsFile "Official supplementary methods PDF" "Leaf" "supplement_methods_file"
+  }
+  if (@($SelectedSteps | Where-Object { $_ -in @(1, 2) }).Count -gt 0) {
+    $script:OlinkProcessingStartDateFile = Resolve-RequiredPath $OlinkProcessingStartDateFile "Olink processing start-date table" "Leaf" "olink_processing_start_date_file"
+  }
   if (9 -in $SelectedSteps) {
     $script:RawProteinFile = Resolve-RequiredPath $RawProteinFile "Unimputed protein table" "Leaf" "raw_protein_file"
     $script:PhenotypeRds = Resolve-RequiredPath $PhenotypeRds "Phenotype RDS" "Leaf" "phenotype_rds"
@@ -533,6 +570,13 @@ function Save-ResolvedPathProfile([int[]]$SelectedSteps) {
     $values.raw_phenotype_file = $RawPhenotypeFile
     $values.panel_mapping_file = $PanelMappingFile
   }
+  if (@($SelectedSteps | Where-Object { $_ -in @(1, 7, 8, 11) }).Count -gt 0) {
+    $values.supplement_workbook_file = $SupplementWorkbookFile
+  }
+  if (1 -in $SelectedSteps) { $values.supplement_methods_file = $SupplementMethodsFile }
+  if (@($SelectedSteps | Where-Object { $_ -in @(1, 2) }).Count -gt 0) {
+    $values.olink_processing_start_date_file = $OlinkProcessingStartDateFile
+  }
   if (5 -in $SelectedSteps) { $values.cmr_feature_file = $CmrFeatureFile }
   if (6 -in $SelectedSteps) { $values.pqtl_root = $PqtlRoot }
   foreach ($item in $values.GetEnumerator()) {
@@ -553,6 +597,9 @@ function Invoke-FullMode([string]$Mode) {
     PhenotypeRds = $PhenotypeRds
     RawPhenotypeFile = $RawPhenotypeFile
     PanelMappingFile = $PanelMappingFile
+    SupplementWorkbookFile = $SupplementWorkbookFile
+    SupplementMethodsFile = $SupplementMethodsFile
+    OlinkProcessingStartDateFile = $OlinkProcessingStartDateFile
     PqtlRoot = $PqtlRoot
     MrOutcomeLookupDir = $MrOutcomeLookupDir
     EndpointSubset = $Disease
@@ -574,6 +621,8 @@ function Invoke-FullMode([string]$Mode) {
     SystemsTopN = $SystemsTopN
     SystemsMaxTf = $SystemsMaxTf
     SystemsFdr = $SystemsFdr
+    RscriptExe = $RscriptExe
+    PythonExe = $PythonExe
     Resume = $Resume.IsPresent
     Force = $Force.IsPresent
     AllowConcurrentHeavyJob = $AllowConcurrentHeavyJob.IsPresent
@@ -600,6 +649,8 @@ function Invoke-PrsAll {
     Force = $Force.IsPresent
     ConfirmHeavy = $ConfirmHeavy.IsPresent
     KeepStreamedGenotype = $KeepStreamedGenotype.IsPresent
+    RscriptExe = $RscriptExe
+    PythonExe = $PythonExe
   }
   & $PrsRunner @arguments
 }
@@ -617,12 +668,52 @@ function Invoke-Step([int]$Id) {
     9 { Invoke-PrsAll }
     10 { Invoke-FullMode "figure6_systems" }
     11 {
+      Assert-FinalFigureInputs
       Invoke-FullMode "figures"
       Invoke-FullMode "systems_figures"
       Invoke-FullMode "report"
+      Assert-FinalFigurePackage
     }
     default { throw "Unsupported step: $Id" }
   }
+}
+
+function Assert-FinalFigureInputs {
+  $required = @(
+    (Join-Path $AnalysisDir "14_enrichment/enrichment_results.csv"),
+    (Join-Path $AnalysisDir "14_enrichment/local_cox_systems/figure6c_cvd_protein_tf_edges.csv"),
+    (Join-Path $AnalysisDir "14_enrichment/local_cox_systems/figure6d_main_cluster_nodes.csv"),
+    (Join-Path $AnalysisDir "14_enrichment/local_cox_systems/figure6d_main_cluster_edges.csv.gz"),
+    (Join-Path $AnalysisDir "15_figures/figure6a_local_prs_protein_heatmap.png")
+  )
+  $missing = @($required | Where-Object { -not (Test-Path $_ -PathType Leaf) })
+  if ($missing.Count -gt 0) {
+    throw "Final Figure 1-6 inputs are incomplete. Run -Step finalize (or 10-11) after Steps 1-9. Missing:`n$($missing -join "`n")"
+  }
+}
+
+function Assert-FinalFigurePackage {
+  $prefixes = @(
+    "figure1_workflow",
+    "figure2_incident_protein_associations",
+    "figure3_local_cmr",
+    "figure4_prediction_and_importance",
+    "figure5_local_mr_and_mediation",
+    "figure6abcd_local_systems_biology"
+  )
+  $missing = @()
+  foreach ($prefix in $prefixes) {
+    foreach ($extension in @("pdf", "png", "tiff")) {
+      $path = Join-Path $AnalysisDir ("15_figures/{0}.{1}" -f $prefix, $extension)
+      if (-not (Test-Path $path -PathType Leaf) -or (Get-Item $path).Length -le 0) { $missing += $path }
+    }
+  }
+  $report = Join-Path $AnalysisDir "17_report/RESULTS_AND_QC.md"
+  if (-not (Test-Path $report -PathType Leaf) -or (Get-Item $report).Length -le 0) { $missing += $report }
+  if ($missing.Count -gt 0) {
+    throw "Final deliverable validation failed; missing or empty files:`n$($missing -join "`n")"
+  }
+  Write-Host "FINAL FIGURE PACKAGE PASS | Figures 1-6 available as PDF, PNG and TIFF."
 }
 
 $stepMode = $Step.Trim().ToLowerInvariant()
@@ -651,6 +742,18 @@ if ($stepMode -eq "setup") {
   exit 0
 }
 
+if ($stepMode -eq "install") {
+  if (-not (Test-Path $InstallRunner -PathType Leaf)) { throw "Dependency installer not found: $InstallRunner" }
+  & $InstallRunner -RscriptExe $RscriptExe -PythonExe $PythonExe -CondaExe $CondaExe
+  exit $LASTEXITCODE
+}
+
+if ($stepMode -eq "package") {
+  if (-not (Test-Path $PackageRunner -PathType Leaf)) { throw "Package runner not found: $PackageRunner" }
+  & $PackageRunner -ProjectDir $ProjectDir
+  exit $LASTEXITCODE
+}
+
 if (-not (Test-Path $FullRunner -PathType Leaf)) { throw "Full runner not found: $FullRunner" }
 if (-not (Test-Path $PrsRunner -PathType Leaf)) { throw "PRS runner not found: $PrsRunner" }
 
@@ -658,6 +761,14 @@ if ($stepMode -eq "status") {
   Invoke-FullMode "monitor"
   & $PrsRunner -Mode monitor -Dir0 $Dir0 -AnalysisRoot $AnalysisRoot -AnalysisProject $AnalysisProject
   exit 0
+}
+
+if ($stepMode -eq "doctor") {
+  $DoctorSteps = @(1, 2, 3, 4)
+  Resolve-SelectedInputPaths $DoctorSteps
+  Show-ResolvedPlan $DoctorSteps
+  Invoke-FullMode "doctor"
+  exit $LASTEXITCODE
 }
 
 $SelectedSteps = @(Resolve-Steps $Step)
@@ -723,9 +834,14 @@ $State = [ordered]@{
   phenotype_rds = $PhenotypeRds
   raw_phenotype_file = $RawPhenotypeFile
   panel_mapping_file = $PanelMappingFile
+  supplement_workbook_file = $SupplementWorkbookFile
+  supplement_methods_file = $SupplementMethodsFile
+  olink_processing_start_date_file = $OlinkProcessingStartDateFile
   cmr_feature_file = $CmrFeatureFile
   pqtl_root = $PqtlRoot
   windows_nas_root = $WindowsNasRoot
+  rscript_exe = $RscriptExe
+  python_exe = $PythonExe
   path_prompt_mode = $PathPromptMode
   yys_score_mode = "off"
   error = $null

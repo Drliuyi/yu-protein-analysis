@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("help","sources","preflight","cohort","cox_prepare","cox_shard","cox_merge","cox","cox_parallel","cmr_prepare","cmr_shard","cmr_merge","cmr","cmr_parallel","mr_prepare","mr_run","mediation_prepare","mediation_run","mediation_cmest_pilot","mediation_cmest_shard","mediation_cmest_merge","mediation_cmest_parallel","figure5_local","systems_prepare","systems_enrichment","systems_tf","systems_ppi","systems_figures","figure6_systems","select","yys","train","evaluate","figures","report","monitor","all","all_fast")]
+  [ValidateSet("help","doctor","sources","preflight","cohort","cox_prepare","cox_shard","cox_merge","cox","cox_parallel","cmr_prepare","cmr_shard","cmr_merge","cmr","cmr_parallel","mr_prepare","mr_run","mediation_prepare","mediation_run","mediation_cmest_pilot","mediation_cmest_shard","mediation_cmest_merge","mediation_cmest_parallel","figure5_local","systems_prepare","systems_enrichment","systems_tf","systems_ppi","systems_figures","figure6_systems","select","yys","train","evaluate","figures","report","monitor","all","all_fast")]
   [string]$Mode = "help",
   [string]$Dir0 = "D:/",
   [string]$AnalysisRoot = "",
@@ -9,9 +9,12 @@ param(
   [string]$PhenotypeRds = "D:/data/ukb/phe/Rdata/all.rds",
   [string]$RawPhenotypeFile = "D:/data/ukb/phe/pheno.tsv.gz",
   [string]$PanelMappingFile = "D:/data.BIG/gwas/ppp/olink_protein_map_3k_v1.tsv",
+  [string]$SupplementWorkbookFile = "",
+  [string]$SupplementMethodsFile = "",
   [string]$PqtlRoot = "D:/ppp/clean",
   [string]$MrOutcomeLookupDir = "",
   [string]$OlinkProcessingStartDateFile = "",
+  [string]$RscriptExe = $(if ($env:YU_RSCRIPT) { $env:YU_RSCRIPT } else { "" }),
   [string]$EndpointSubset = "all",
   [int]$Workers = 16,
   [int]$CoxJobs = 4,
@@ -51,25 +54,54 @@ $ConfigFile = Join-Path $ProjectDir "f/config/full_reproduction_defaults.json"
 if (-not $AnalysisRoot) { $AnalysisRoot = Join-Path $Dir0 "analysis" }
 $AnalysisDir = Join-Path $AnalysisRoot $AnalysisProject
 $LogDir = Join-Path $AnalysisDir "00_logs"
-if ($Mode -ne "monitor") { New-Item -ItemType Directory -Force -Path $LogDir | Out-Null }
+if ($Mode -notin @("monitor", "doctor")) { New-Item -ItemType Directory -Force -Path $LogDir | Out-Null }
 if (-not $OlinkProcessingStartDateFile) {
   $OlinkProcessingStartDateFile = Join-Path $ProjectDir "references/raw/olink_processing_start_date.dat"
+}
+if (-not $SupplementWorkbookFile) {
+  $SupplementWorkbookFile = Join-Path $ProjectDir "references/raw/pwaf072_supplementary_table_1.xlsx"
+}
+if (-not $SupplementMethodsFile) {
+  $SupplementMethodsFile = Join-Path $ProjectDir "references/raw/pwaf072_supplementary_figure_1.pdf"
 }
 if (-not $MrOutcomeLookupDir) {
   $MrOutcomeLookupDir = Join-Path $AnalysisDir "11_mr/outcome_lookup"
 }
 
-$Rscript = @(
-  "C:/Program Files/R/R-4.3.2/bin/x64/Rscript.exe",
-  "C:/Program Files/R/R-4.5.1/bin/x64/Rscript.exe"
-) | Where-Object { Test-Path $_ } | Select-Object -First 1
-$PythonCandidates = @(
-  "C:/Users/Dr.Liuyi/anaconda3/envs/yu_proteomic_repo_py39/python.exe",
-  "C:/Users/Dr.Liuyi/anaconda3/python.exe"
+function Resolve-Executable([string]$Explicit, [string[]]$Commands, [string[]]$KnownPaths) {
+  if ($Explicit -and -not (Test-Path $Explicit -PathType Leaf)) {
+    throw "Runtime override does not exist: $Explicit"
+  }
+  $candidates = @()
+  if ($Explicit) { $candidates += $Explicit }
+  $candidates += $KnownPaths
+  foreach ($command in $Commands) {
+    $resolved = Get-Command $command -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($resolved -and $resolved.Source) { $candidates += $resolved.Source }
+  }
+  $matches = @($candidates | Where-Object { $_ -and (Test-Path $_ -PathType Leaf) } | Select-Object -Unique)
+  if ($matches.Count -eq 0) { return $null }
+  return $matches[0]
+}
+
+$preferredPython = @()
+if ($env:USERPROFILE) {
+  $preferredPython += Join-Path $env:USERPROFILE "anaconda3/envs/yu_proteomic_repo_py39/python.exe"
+  $preferredPython += Join-Path $env:USERPROFILE "miniconda3/envs/yu_proteomic_repo_py39/python.exe"
+}
+$preferredPython += @(
+  "C:/ProgramData/anaconda3/envs/yu_proteomic_repo_py39/python.exe",
+  "C:/ProgramData/miniconda3/envs/yu_proteomic_repo_py39/python.exe"
 )
-if ($PythonExe) { $PythonCandidates = @($PythonExe) + $PythonCandidates }
-$Python = $PythonCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-if (-not $Rscript) { throw "Rscript not found." }
+$Rscript = Resolve-Executable $RscriptExe @("Rscript.exe", "Rscript") @(
+  "C:/Program Files/R/R-4.5.1/bin/x64/Rscript.exe",
+  "C:/Program Files/R/R-4.3.2/bin/x64/Rscript.exe"
+)
+$Python = Resolve-Executable $PythonExe @("python.exe", "python3.exe", "python") $preferredPython
+$NeedsR = $Mode -ne "monitor"
+if ($NeedsR -and -not $Rscript) {
+  throw "Rscript not found. Supply -RscriptExe, set YU_RSCRIPT, or install R in a standard Windows location."
+}
 $SystemsModes = @("systems_prepare","systems_enrichment","systems_tf","systems_ppi","systems_figures","figure6_systems")
 if ($Mode -in $SystemsModes) {
   $SystemsInstaller = Join-Path $ProjectDir "f/tools/install_yu_systems_packages.R"
@@ -101,6 +133,8 @@ function Invoke-RStage([string]$Stage, [string[]]$ExtraArgs = @()) {
     "--cmr_feature_file=$CmrFeatureFile", "--cmr_metric_subset=$CmrMetricSubset",
     "--phenotype_rds=$PhenotypeRds", "--raw_phenotype_file=$RawPhenotypeFile",
     "--panel_mapping_file=$PanelMappingFile",
+    "--supplement_workbook_file=$SupplementWorkbookFile",
+    "--supplement_methods_file=$SupplementMethodsFile",
     "--olink_processing_start_date_file=$OlinkProcessingStartDateFile",
     "--endpoint_subset=$EndpointSubset", "--workers=$Workers", "--bootstrap_n=$BootstrapN",
     "--yys_mode=$YYScoreMode", "--prediction_panel_mode=$PredictionPanelMode",
@@ -127,6 +161,7 @@ function Invoke-RStage([string]$Stage, [string[]]$ExtraArgs = @()) {
 }
 
 function Invoke-PythonStage([string]$Stage) {
+  Test-PythonEnvironment
   $stamp = Get-Date -Format "yyyyMMdd_HHmmss"
   $log = Join-Path $LogDir ("{0}_{1}.log" -f $Stage, $stamp)
   $argsList = @(
@@ -150,7 +185,7 @@ function Invoke-PythonStage([string]$Stage) {
   if ($code -ne 0) { throw "Python stage $Stage failed with exit code $code. See $log" }
 }
 
-function Test-PythonEnvironment {
+function Test-PythonEnvironment([switch]$NoWrite) {
   if (-not $Python) { throw "Python with lightgbm, scikit-learn, pandas and numpy is required for the full workflow." }
   # dict() avoids Windows command-line quote stripping around JSON keys.
   $code = "import json,sys,lightgbm,sklearn,pandas,numpy; print(json.dumps(dict(status=chr(80)+chr(65)+chr(83)+chr(83),python='.'.join(map(str,sys.version_info[:3])),lightgbm=lightgbm.__version__,sklearn=sklearn.__version__,pandas=pandas.__version__,numpy=numpy.__version__)))"
@@ -161,8 +196,67 @@ function Test-PythonEnvironment {
   if ($pythonMajorMinor -ne "3.9" -or $environment.lightgbm -ne "3.3.2") {
     throw "Formal reproduction requires Python 3.9 and lightgbm 3.3.2; found Python $($environment.python), lightgbm $($environment.lightgbm). Run f/tools/setup_yu_reproduction_python_windows.ps1 first."
   }
-  $json | Set-Content -Encoding UTF8 (Join-Path $AnalysisDir "02_preflight/python_environment.json")
+  if (-not $NoWrite) {
+    $preflightDir = Join-Path $AnalysisDir "02_preflight"
+    New-Item -ItemType Directory -Force -Path $preflightDir | Out-Null
+    $json | Set-Content -Encoding UTF8 (Join-Path $preflightDir "python_environment.json")
+  }
   Write-Host "Python environment: $json"
+}
+
+function Invoke-Doctor {
+  $requiredFiles = [ordered]@{
+    r_entry = $RFile
+    python_model = $PythonFile
+    configuration = $ConfigFile
+    raw_protein = $RawProteinFile
+    phenotype_rds = $PhenotypeRds
+    raw_phenotype = $RawPhenotypeFile
+    panel_mapping = $PanelMappingFile
+    supplement_workbook = $SupplementWorkbookFile
+    supplement_methods = $SupplementMethodsFile
+    olink_processing_dates = $OlinkProcessingStartDateFile
+  }
+  $missingFiles = @()
+  foreach ($item in $requiredFiles.GetEnumerator()) {
+    $exists = Test-Path $item.Value -PathType Leaf
+    Write-Host ("{0,-28} {1,-5} {2}" -f $item.Key, $(if ($exists) { "PASS" } else { "FAIL" }), $item.Value)
+    if (-not $exists) { $missingFiles += $item.Value }
+  }
+
+  $rPackages = @(
+    "data.table","jsonlite","digest","readxl","survival","pROC","ggplot2","bit64",
+    "patchwork","ggrepel","ragg","httr2","curl","igraph","ggalluvial","scales",
+    "msigdbr","AnnotationDbi","org.Hs.eg.db","GO.db","TwoSampleMR","CMAverse"
+  )
+  $quoted = ($rPackages | ForEach-Object { "'$_'" }) -join ","
+  $rCheck = "p=c($quoted); m=p[!vapply(p,requireNamespace,logical(1),quietly=TRUE)]; cat(if(length(m)) paste(m,collapse=',') else 'PASS')"
+  $rStatus = (& $Rscript --vanilla -e $rCheck | Select-Object -Last 1).Trim()
+  if ($LASTEXITCODE -ne 0 -or $rStatus -ne "PASS") {
+    throw "R package doctor failed. Missing core packages: $rStatus. Run yu.ps1 -Step install."
+  }
+  Write-Host "R runtime/packages            PASS  $Rscript"
+  Test-PythonEnvironment -NoWrite
+  Write-Host "Python frozen environment     PASS  $Python"
+  if ($missingFiles.Count -gt 0) {
+    throw "Doctor found missing required files:`n$($missingFiles -join "`n")"
+  }
+  $sourceManifest = Join-Path $ProjectDir "references/SOURCE_MANIFEST.csv"
+  $expected = @(Import-Csv $sourceManifest | Where-Object {
+    $_.source_id -in @("supplement_tables", "supplement_methods")
+  })
+  $referenceFiles = @{
+    supplement_tables = $SupplementWorkbookFile
+    supplement_methods = $SupplementMethodsFile
+  }
+  foreach ($row in $expected) {
+    $actual = (Get-FileHash $referenceFiles[$row.source_id] -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actual -ne $row.sha256.ToLowerInvariant()) {
+      throw "Official reference hash failed for $($row.source_id): $($referenceFiles[$row.source_id])"
+    }
+  }
+  Write-Host "Official supplement SHA256    PASS"
+  Write-Host "YU PROJECT DOCTOR PASS"
 }
 
 function Write-HardwareManifest {
@@ -449,9 +543,10 @@ function Show-Monitor {
   }
 }
 
-if ($Mode -ne "monitor") { Write-HardwareManifest }
+if ($Mode -notin @("monitor", "doctor")) { Write-HardwareManifest }
 if ($Mode -eq "help") { Invoke-RStage "help"; exit 0 }
 switch ($Mode) {
+  "doctor" { Invoke-Doctor }
   "sources"   { Invoke-RStage "sources" }
   "preflight" { Invoke-RStage "preflight"; Test-PythonEnvironment }
   "cohort"    { Invoke-RStage "cohort" }

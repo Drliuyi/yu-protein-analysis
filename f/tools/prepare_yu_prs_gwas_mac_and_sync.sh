@@ -14,7 +14,7 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${PROJECT_DIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
-LOCAL_ANALYSIS_DIR="${LOCAL_ANALYSIS_DIR:-/Users/drlau/Documents/UKB_data/tmp/yu_proteomic_repo_v3_prs_mac}"
+LOCAL_ANALYSIS_DIR="${LOCAL_ANALYSIS_DIR:-${TMPDIR:-/tmp}/yu_proteomic_repo_v3_prs_mac}"
 WINPC_ALIAS="${WINPC_ALIAS:-winpc}"
 REMOTE_ANALYSIS_DIR="${REMOTE_ANALYSIS_DIR:-/mnt/d/analysis/yu_proteomic_repo_v3}"
 REMOTE_SFTP_ANALYSIS_DIR="${REMOTE_SFTP_ANALYSIS_DIR:-/D:/analysis/yu_proteomic_repo_v3}"
