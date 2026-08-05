@@ -16,6 +16,8 @@ stopifnot(
   identical(names(yur_msigdb_arguments(specification, c("species", "category", "subcategory"))),
             c("species", "category", "subcategory"))
 )
+version_test <- yur_msigdb_version(data.table(gs_name = "TEST"))
+stopifnot("db_version" %in% names(version_test), nzchar(version_test$db_version[[1]]))
 
 tmp <- tempfile("figure6_systems_test_")
 dir.create(file.path(tmp, "05_cox"), recursive = TRUE)

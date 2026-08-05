@@ -181,6 +181,13 @@ yur_msigdb_arguments <- function(specification, formal_names = names(formals(msi
   args
 }
 
+yur_msigdb_version <- function(value) {
+  if (!"db_version" %in% names(value)) {
+    value[, db_version := paste0("msigdbr-", as.character(utils::packageVersion("msigdbr")))]
+  }
+  value
+}
+
 yur_msigdb_pathways <- function(background) {
   yur_systems_required_packages(c("msigdbr", "AnnotationDbi", "org.Hs.eg.db", "GO.db"))
   specifications <- list(
@@ -192,7 +199,7 @@ yur_msigdb_pathways <- function(background) {
     list(collection = "C2", subcollection = "CP:REACTOME", source = "Reactome")
   )
   pathway_parts <- lapply(specifications, function(specification) {
-    value <- as.data.table(do.call(msigdbr::msigdbr, yur_msigdb_arguments(specification)))
+    value <- yur_msigdb_version(as.data.table(do.call(msigdbr::msigdbr, yur_msigdb_arguments(specification))))
     value <- value[yur_clean_gene_symbol(gene_symbol) %chin% background]
     unique(value[, .(
       source = specification$source, term = gs_name,
