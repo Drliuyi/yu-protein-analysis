@@ -169,6 +169,18 @@ yur_clean_pathway_label <- function(x) {
   tools::toTitleCase(tolower(x))
 }
 
+yur_msigdb_arguments <- function(specification, formal_names = names(formals(msigdbr::msigdbr))) {
+  args <- list(species = "Homo sapiens")
+  if ("collection" %in% formal_names) {
+    args$collection <- specification$collection
+    args$subcollection <- specification$subcollection
+  } else {
+    args$category <- specification$collection
+    args$subcategory <- specification$subcollection
+  }
+  args
+}
+
 yur_msigdb_pathways <- function(background) {
   yur_systems_required_packages(c("msigdbr", "AnnotationDbi", "org.Hs.eg.db", "GO.db"))
   specifications <- list(
@@ -180,10 +192,7 @@ yur_msigdb_pathways <- function(background) {
     list(collection = "C2", subcollection = "CP:REACTOME", source = "Reactome")
   )
   pathway_parts <- lapply(specifications, function(specification) {
-    value <- as.data.table(msigdbr::msigdbr(
-      species = "Homo sapiens", collection = specification$collection,
-      subcollection = specification$subcollection
-    ))
+    value <- as.data.table(do.call(msigdbr::msigdbr, yur_msigdb_arguments(specification)))
     value <- value[yur_clean_gene_symbol(gene_symbol) %chin% background]
     unique(value[, .(
       source = specification$source, term = gs_name,

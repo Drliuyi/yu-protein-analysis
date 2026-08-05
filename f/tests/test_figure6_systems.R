@@ -9,6 +9,14 @@ root <- dirname(dirname(normalizePath(sub("^--file=", "", file_arg[[1]]))))
 source(file.path(root, "R", "full", "00_core.R"))
 source(file.path(root, "R", "full", "08_systems_biology.R"))
 
+specification <- list(collection = "C2", subcollection = "CP:REACTOME")
+stopifnot(
+  identical(names(yur_msigdb_arguments(specification, c("species", "collection", "subcollection"))),
+            c("species", "collection", "subcollection")),
+  identical(names(yur_msigdb_arguments(specification, c("species", "category", "subcategory"))),
+            c("species", "category", "subcategory"))
+)
+
 tmp <- tempfile("figure6_systems_test_")
 dir.create(file.path(tmp, "05_cox"), recursive = TRUE)
 dir.create(file.path(tmp, "14_enrichment"), recursive = TRUE)
