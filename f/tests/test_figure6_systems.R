@@ -18,6 +18,13 @@ stopifnot(
 )
 version_test <- yur_msigdb_version(data.table(gs_name = "TEST"))
 stopifnot("db_version" %in% names(version_test), nzchar(version_test$db_version[[1]]))
+old_specs <- yur_msigdb_specifications(c("species", "category", "subcategory"))
+new_specs <- yur_msigdb_specifications(c("species", "collection", "subcollection"))
+stopifnot(
+  identical(vapply(old_specs, `[[`, character(1), "subcollection")[2], "CP:KEGG"),
+  all(c("CP:KEGG_LEGACY", "CP:KEGG_MEDICUS") %in%
+        vapply(new_specs, `[[`, character(1), "subcollection"))
+)
 
 tmp <- tempfile("figure6_systems_test_")
 dir.create(file.path(tmp, "05_cox"), recursive = TRUE)

@@ -188,16 +188,22 @@ yur_msigdb_version <- function(value) {
   value
 }
 
+yur_msigdb_specifications <- function(formal_names = names(formals(msigdbr::msigdbr))) {
+  kegg <- if ("collection" %in% formal_names) c("CP:KEGG_LEGACY", "CP:KEGG_MEDICUS") else "CP:KEGG"
+  c(
+    list(list(collection = "C2", subcollection = "CP:WIKIPATHWAYS", source = "Wiki")),
+    lapply(kegg, function(x) list(collection = "C2", subcollection = x, source = "KEGG")),
+    list(
+      list(collection = "C2", subcollection = "CP:BIOCARTA", source = "Canonical"),
+      list(collection = "C2", subcollection = "CP:PID", source = "Canonical"),
+      list(collection = "C2", subcollection = "CP:REACTOME", source = "Reactome")
+    )
+  )
+}
+
 yur_msigdb_pathways <- function(background) {
   yur_systems_required_packages(c("msigdbr", "AnnotationDbi", "org.Hs.eg.db", "GO.db"))
-  specifications <- list(
-    list(collection = "C2", subcollection = "CP:WIKIPATHWAYS", source = "Wiki"),
-    list(collection = "C2", subcollection = "CP:KEGG_LEGACY", source = "KEGG"),
-    list(collection = "C2", subcollection = "CP:KEGG_MEDICUS", source = "KEGG"),
-    list(collection = "C2", subcollection = "CP:BIOCARTA", source = "Canonical"),
-    list(collection = "C2", subcollection = "CP:PID", source = "Canonical"),
-    list(collection = "C2", subcollection = "CP:REACTOME", source = "Reactome")
-  )
+  specifications <- yur_msigdb_specifications()
   pathway_parts <- lapply(specifications, function(specification) {
     value <- yur_msigdb_version(as.data.table(do.call(msigdbr::msigdbr, yur_msigdb_arguments(specification))))
     value <- value[yur_clean_gene_symbol(gene_symbol) %chin% background]
