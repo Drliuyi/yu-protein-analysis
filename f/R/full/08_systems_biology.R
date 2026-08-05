@@ -181,9 +181,10 @@ yur_msigdb_arguments <- function(specification, formal_names = names(formals(msi
   args
 }
 
-yur_msigdb_version <- function(value) {
+yur_msigdb_version <- function(value, package_version = NULL) {
   if (!"db_version" %in% names(value)) {
-    value[, db_version := paste0("msigdbr-", as.character(utils::packageVersion("msigdbr")))]
+    package_version <- package_version %||% as.character(utils::packageVersion("msigdbr"))
+    value[, db_version := paste0("msigdbr-", package_version)]
   }
   value
 }

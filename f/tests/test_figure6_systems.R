@@ -16,7 +16,7 @@ stopifnot(
   identical(names(yur_msigdb_arguments(specification, c("species", "category", "subcategory"))),
             c("species", "category", "subcategory"))
 )
-version_test <- yur_msigdb_version(data.table(gs_name = "TEST"))
+version_test <- yur_msigdb_version(data.table(gs_name = "TEST"), package_version = "test")
 stopifnot("db_version" %in% names(version_test), nzchar(version_test$db_version[[1]]))
 old_specs <- yur_msigdb_specifications(c("species", "category", "subcategory"))
 new_specs <- yur_msigdb_specifications(c("species", "collection", "subcollection"))
