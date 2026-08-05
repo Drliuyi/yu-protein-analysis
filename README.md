@@ -1,12 +1,13 @@
 # Yu Protein Analysis
 
-Yu/Chen 2025 UKB-PPP 蛋白组分析的可复现实现。项目仅保留一个公开入口：
+Reproducible implementation of the Yu/Chen 2025 UKB-PPP proteomic analysis.
+The project exposes a single public entry point:
 
 ```bash
 ./yu.sh --help
 ```
 
-## 快速开始
+## Quick start
 
 ```bash
 ./yu.sh setup
@@ -14,15 +15,16 @@ Yu/Chen 2025 UKB-PPP 蛋白组分析的可复现实现。项目仅保留一个�
 ./yu.sh all --confirm-heavy --resume
 ```
 
-在 WinPC PowerShell 中通过 WSL 调用同一个入口：
+Use the same entry point through WSL from WinPC PowerShell:
 
 ```powershell
 wsl bash -lc "cd /mnt/d/UKB_data/scripts/yu-protein-analysis && ./yu.sh --help"
 wsl bash -lc "cd /mnt/d/UKB_data/scripts/yu-protein-analysis && ./yu.sh all --confirm-heavy --resume"
 ```
 
-`setup` 只确认并保存路径，不启动分析；`doctor` 检查数据、软件和代码；
-`all` 执行完整流程。常用辅助命令：
+`setup` validates and saves paths without starting an analysis. `doctor` checks
+the data, software, and code environment. `all` runs the complete workflow.
+Common utility commands are:
 
 ```bash
 ./yu.sh status
@@ -31,7 +33,7 @@ wsl bash -lc "cd /mnt/d/UKB_data/scripts/yu-protein-analysis && ./yu.sh all --co
 ./yu.sh package
 ```
 
-步骤可以单独、组合或按范围运行：
+Steps can be run individually, as a list, or as a range:
 
 ```bash
 ./yu.sh 3
@@ -39,32 +41,34 @@ wsl bash -lc "cd /mnt/d/UKB_data/scripts/yu-protein-analysis && ./yu.sh all --co
 ./yu.sh 1-4 --resume
 ```
 
-| 步骤 | 内容 |
+| Step | Description |
 |---:|---|
-| 1 | 文献来源、输入和面板质控 |
-| 2 | 无基线 CVD 的 incident 队列 |
-| 3 | 14 个结局的全蛋白 Cox 分析 |
-| 4 | 训练集蛋白筛选、LightGBM 和留出集评估 |
-| 5 | CMR 关联 |
+| 1 | Literature sources, input validation, and panel QC |
+| 2 | Incident cohort without baseline CVD |
+| 3 | Full-panel Cox analysis for 14 outcomes |
+| 4 | Training-set protein selection, LightGBM, and held-out evaluation |
+| 5 | Cardiac MRI associations |
 | 6 | MR |
-| 7 | 中介候选分析 |
-| 8 | CMAverse 中介分析 |
-| 9 | 13 个结局的 PRS-蛋白分析 |
-| 10 | 富集、TF 和 STRING-PPI |
-| 11 | Figure 1-6 和结果报告 |
+| 7 | Mediation candidate analysis |
+| 8 | CMAverse mediation analysis |
+| 9 | PRS-protein analysis for 13 outcomes |
+| 10 | Enrichment, transcription-factor, and STRING-PPI analyses |
+| 11 | Figures 1-6 and the results report |
 
-步骤 8、9 耗时较长，需增加 `--confirm-heavy`。`--resume` 只复用通过
-完整性校验的阶段和分片。
+Steps 8 and 9 are computationally intensive and require `--confirm-heavy`.
+`--resume` reuses only stages and shards that pass integrity checks.
 
-## 路径
+## Paths
 
-默认采用黄老师项目的 D 盘接口：`D:/data/ukb/phe`、`D:/analysis`、
-`D:/data.BIG/gwas/ppp`。在当前 WinPC 上会自动识别原有的
-`D:/UKB_data` 目录，不移动数据，也不建立兼容链接。基因型默认从
-`Z:/projects/genotype_pc_nas/imputed_pgen_autosomes` 直接读取。
+The default interface follows the Huang-lab D-drive layout:
+`D:/data/ukb/phe`, `D:/analysis`, and `D:/data.BIG/gwas/ppp`. On the current
+WinPC, the project automatically detects the existing `D:/UKB_data` tree. It
+does not move data or create compatibility links. Genotypes are read directly
+from `Z:/projects/genotype_pc_nas/imputed_pgen_autosomes` by default.
 
-路径不存在时，交互终端会要求输入；确认结果保存在当前用户配置目录。
-也可以显式覆盖，例如：
+If a required path does not exist, an interactive terminal prompts for the
+correct location and saves the confirmed value in the current user's
+configuration directory. Paths can also be overridden explicitly:
 
 ```bash
 ./yu.sh 1-4 \
@@ -74,7 +78,7 @@ wsl bash -lc "cd /mnt/d/UKB_data/scripts/yu-protein-analysis && ./yu.sh all --co
   --resume
 ```
 
-更换疾病或模型蛋白时必须使用新的结果项目：
+Use a new analysis project when changing the disease or model proteins:
 
 ```bash
 ./yu.sh 2-4 \
@@ -84,19 +88,20 @@ wsl bash -lc "cd /mnt/d/UKB_data/scripts/yu-protein-analysis && ./yu.sh all --co
   --model-proteins GDF15,NPPB,ADM,CST3
 ```
 
-## 目录
+## Repository structure
 
 ```text
-yu.sh          唯一运行命令
-f/entry        R 低层入口
-f/R            分析和绘图
-f/python       模型与 PRS
-f/tools        内部调度和安装工具
-f/config       冻结参数与映射
-f/tests        自动检查
-references     公开文献附件及来源清单
+yu.sh          Single public command
+f/entry        Low-level R entry points
+f/R            Analysis and figure code
+f/python       Modeling and PRS code
+f/tools        Internal orchestration and installation tools
+f/config       Frozen parameters and mappings
+f/tests        Automated checks
+references     Public supplementary files and source manifests
 ```
 
-公开流程固定为 Yu/Chen 复现，不运行 YYScore，也不读取 FairK、ProtWAS、
-Top-K 或其他旧项目结果。详细统计边界见 [METHODS_FROZEN.md](METHODS_FROZEN.md)，
-交付检查见 [QC_REVIEW_CHECKLIST.md](QC_REVIEW_CHECKLIST.md)。
+The public workflow is frozen as the Yu/Chen reproduction. It does not run
+YYScore or read FairK, ProtWAS, Top-K, or other legacy-project results. See
+[METHODS_FROZEN.md](METHODS_FROZEN.md) for the statistical boundaries and
+[QC_REVIEW_CHECKLIST.md](QC_REVIEW_CHECKLIST.md) for delivery checks.
